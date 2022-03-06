@@ -1,16 +1,18 @@
+# https://simpy.readthedocs.io/en/latest/simpy_intro/process_interaction.html
+
 import simpy
 import parameters
 
 
-def car(env):
+def car(obj_env):
     while True:
-        print('Start parking at %d' % env.now)
+        print('Start parking at %d' % obj_env.now)
         # parking_duration = 5
-        yield env.timeout(parameters.parking_duration)
+        yield obj_env.timeout(parameters.parking_duration)
 
-        print('Start driving at %d' % env.now)
+        print('Start driving at %d' % obj_env.now)
         # trip_duration = 2
-        yield env.timeout(parameters.trip_duration)
+        yield obj_env.timeout(parameters.trip_duration)
 
 
 # The first thing we need to do is to create an instance of Environment.
