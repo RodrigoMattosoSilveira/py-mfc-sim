@@ -4,20 +4,27 @@ import simpy
 import parameters
 
 
-def car(obj_env):
-    while True:
-        print('Start parking at %d' % obj_env.now)
-        # parking_duration = 5
-        yield obj_env.timeout(parameters.parking_duration)
+class Car(object):
+    def __init__(self, env):
+        self.env = env
+        # Start the run process everytime an instance is created.
+        self.action = env.process(self.run())
 
-        print('Start driving at %d' % obj_env.now)
-        # trip_duration = 2
-        yield obj_env.timeout(parameters.trip_duration)
+    def run(self):
+        while True:
+            print('Start parking at %d' % self.env.now)
+            # We yield the process that process() returns to wait for it to finish
+            yield self.env.process(self.charge(parameters.charge_duration))
+
+            # The charge process has finished and # we can start driving again.
+            print('Start driving at %d' % self.env.now)
+            yield self.env.timeout(parameters.trip_duration)
+
+    def charge(self, duration):
+        print('Start charging at %d' % self.env.now)
+        yield self.env.timeout(duration)
 
 
-# The first thing we need to do is to create an instance of Environment.
-# A simulation environment manages the simulation time as well as the scheduling and processing of events. It also
-# provides means to step through or execute the simulation.
 env = simpy.Environment()
-env.process(car(env))
-env.run(until=15)
+car = Car(env)
+env.run(until=parameters.simulation_duration)
