@@ -45,7 +45,7 @@ class PPP(object):
         yield env.timeout(iat)
         print('%s got a fulfillment order at %s.' % (self.name, env.now))
         # simulate the time to fulfill an order
-        time_to_fulfill_order = mrn.get_random_normal(170, 3);
+        time_to_fulfill_order = mrn.get_random_normal(170, 3)
         yield env.timeout(time_to_fulfill_order)
         print('%s fulfilled order att %s.' % (self.name, env.now))
 
