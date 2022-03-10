@@ -44,11 +44,14 @@ class PPP(object):
         iat = mrn.get_random_normal(INTER_ARRIVAL_TIME_MEAN, INTER_ARRIVAL_TIME_SIGMA)
         yield env.timeout(iat)
         print('%s got a fulfillment order at %s.' % (self.name, env.now))
-
+        # simulate the time to fulfill an order
+        time_to_fulfill_order = mrn.get_random_normal(170, 3);
+        yield env.timeout(time_to_fulfill_order)
+        print('%s fulfilled order att %s.' % (self.name, env.now))
 
 env = simpy.Environment()
 # using secrets.choices() to generate a random name
 name = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for i in range(8))
 
 ppp = PPP(env, name)
-env.run(until=100)
+env.run(until=1000)
