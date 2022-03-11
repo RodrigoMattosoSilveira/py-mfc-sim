@@ -8,7 +8,7 @@ class PppDailyTally(object):
     Used to collect PPP shift data
     """
     def __init__(self):
-        self.pppId = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for i in range(8))
+        self.pppId = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         self.orders = 0
         self.workTime = 0
         self.hourBreakDuration = 0

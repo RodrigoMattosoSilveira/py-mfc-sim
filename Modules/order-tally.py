@@ -8,7 +8,7 @@ class OrderTally(object):
     """
     def __init__(self, ppp_id):
         self.pppId = ppp_id
-        self.orderId = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for i in range(8))
+        self.orderId = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         self.orderTime = 0
         self.pickTime = 0
         self.packTime = 0
