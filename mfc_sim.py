@@ -49,13 +49,14 @@ class PPP(object):
             if self.pppOrderTally is not None:
                 # fulfilled the order
                 print('%s fulfilled order at %s' % (self.pppShiftTally.pppId, env.now))
-                print('%s, %s, %s, %s, %s, %s, %s\n' % (self.pppOrderTally.items,
+                print('%s, %s, %s, %s, %s, %s, %s' % (self.pppOrderTally.items,
                                                         self.pppOrderTally.orderTime,
                                                         self.pppOrderTally.pickTime,
                                                         self.pppOrderTally.packTime,
                                                         self.pppOrderTally.labelTime,
                                                         self.pppOrderTally.courierTime,
                                                         self.pppOrderTally.workTime))
+                print('Accumulated work time: %s\n' % self.pppShiftTally.workTime)
                 self.pppOrderTally = None
 
             self.pppOrderTally = order_tally.OrderTally(pppShiftTally.pppId)
