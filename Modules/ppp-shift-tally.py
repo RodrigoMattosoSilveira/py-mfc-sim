@@ -3,7 +3,7 @@ import string
 import parameters as params
 
 
-class PppDailyTally(object):
+class PppShiftTally(object):
     """
     Used to collect PPP shift data
     See https://www.tutorialsteacher.com/python/property-decorator for info on property decorators
