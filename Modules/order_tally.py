@@ -1,5 +1,6 @@
 import secrets
 import string
+from random_numbers.my_random_calculators import get_random_order_items
 
 
 class OrderTally(object):
@@ -17,7 +18,7 @@ class OrderTally(object):
         self.__deliveryTime = 0
         self.__courierTime = 0
         self.__workTime = 0
-        self.__items = 0
+        self.__items = get_random_order_items()
 
     @property
     def pppId(self):

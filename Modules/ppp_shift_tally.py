@@ -11,6 +11,7 @@ class PppShiftTally(object):
 
     def __init__(self):
         self.__pppId = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        self.__shiftStatus = params.PPP_SHIFT_NOT_STARTED
         self.__orders = 0
         self.__workTime = 0
         self.__hourBreakDuration = 0
@@ -25,6 +26,14 @@ class PppShiftTally(object):
     @pppId.setter
     def pppId(self, value):
         self.__pppId = value
+
+    @property
+    def shiftStatus(self):
+        return self.shiftStatus
+
+    @shiftStatus.setter
+    def shiftStatus(self, value):
+        self.shiftStatus = value
 
     @property
     def orders(self):
