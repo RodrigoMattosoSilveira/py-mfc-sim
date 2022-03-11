@@ -4,7 +4,6 @@ from math import trunc
 
 
 def get_random_normal(mu, sigma):
-    s = np.random.normal(mu, sigma, 100)
     i = random.randint(0, 99)
     s = np.random.normal(mu, sigma, 100)
     return trunc(s[i] + 0.5)
