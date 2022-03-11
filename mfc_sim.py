@@ -203,6 +203,22 @@ class PPP(object):
         # Done with this order, go handle the next order
 
 
+"""
+See https://simpy.readthedocs.io/en/latest/simpy_intro/shared_resources.html
+We will use one environment to simulate a MFC shift's work
+    Will will create the resources required to run the simulation
+        Inventory pick slots
+        Inventory skus
+        Packing boxes
+        Shipping labels
+        Label printer
+        Couries delivery slots
+    We will simulate one or more PPP order fulfillment work
+        We will use a OrderSimulator to simulate a PPP order fulfillment for a PPPs whole shift
+            PppShiftTally - The OrderSimulator uses it to collect the each PPP's shift data
+            OrderTally - The OrderSimulator uses it to collect each order's fulfillment data
+"""
+
 env = simpy.Environment()
 # using secrets.choices() to generate a random name
 name = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for i in range(8))
