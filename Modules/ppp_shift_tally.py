@@ -1,6 +1,6 @@
 import secrets
 import string
-import parameters as params
+from Constants import parameters as params
 
 
 class PppShiftTally(object):

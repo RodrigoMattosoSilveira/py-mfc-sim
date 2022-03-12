@@ -19,6 +19,7 @@ class OrderTally(object):
         self.__courierTime = 0
         self.__workTime = 0
         self.__items = get_random_order_items()
+        self.__status = 'Unfulfilled'
 
     @property
     def pppId(self):
@@ -99,3 +100,11 @@ class OrderTally(object):
     @items.setter
     def items(self, value):
         self.__items = value
+
+    @property
+    def status(self):
+        return self.__status
+
+    @status.setter
+    def status(self, value):
+        self.__status = value

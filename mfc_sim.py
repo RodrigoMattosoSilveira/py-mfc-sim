@@ -4,9 +4,7 @@ import Random.generators as rng
 import Random.app_numbers as app_numbers
 import Modules.ppp_shift_tally as ppp_shift_tally
 import Modules.order_tally as order_tally
-import secrets
-import string
-import parameters as params
+from Constants import parameters as params
 
 
 class PPP(object):
@@ -15,10 +13,11 @@ class PPP(object):
     order and yells hooray
     """
 
-    def __init__(self, _env, _ppp_shift_tally):
+    def __init__(self, _env):
         self.env = env
-        self.__pppShiftTally = _ppp_shift_tally
+        self.__pppShiftTally = None
         self.__pppOrderTally = None
+        self.__packingLocationResource = None
 
     @property
     def pppShiftTally(self):
@@ -36,10 +35,18 @@ class PPP(object):
     def pppOrderTally(self, value):
         self.__pppOrderTally = value
 
+    @property
+    def packingLocationResource(self):
+        return self.__packingLocationResource
+
+    @packingLocationResource.setter
+    def packingLocationResource(self, value):
+        self.__packingLocationResource = value
+
     def checkin(self, _env):
         while _env.now <= params.SHIFT_WORK_DURATION:
             self.pppOrderTally = None
-            self.pppOrderTally = order_tally.OrderTally(pppShiftTally.pppId)
+            self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
             show_bread_crumbs(self, 'Order fulfillment started')
             yield self.env.process(self.order_station())
 
@@ -302,13 +309,13 @@ def show_bread_crumbs(self, detail):
 
 def print_oder_stats(self):
     print('%s, %s, %s, %s, %s, %s, %s %s\n' % (self.pppOrderTally.items,
-                                             self.pppOrderTally.orderTime,
-                                             self.pppOrderTally.pickTime,
-                                             self.pppOrderTally.packTime,
-                                             self.pppOrderTally.labelTime,
-                                             self.pppOrderTally.courierTime,
-                                             self.pppOrderTally.workTime,
-                                             self.pppShiftTally.workTime))
+                                               self.pppOrderTally.orderTime,
+                                               self.pppOrderTally.pickTime,
+                                               self.pppOrderTally.packTime,
+                                               self.pppOrderTally.labelTime,
+                                               self.pppOrderTally.courierTime,
+                                               self.pppOrderTally.workTime,
+                                               self.pppShiftTally.workTime))
 
 
 """
@@ -327,14 +334,12 @@ We will use one environment to simulate a MFC shift's work
             OrderTally - The OrderSimulator uses it to collect each order's fulfillment data
 """
 
+# Set up the simulation
 env = simpy.Environment()
-# using secrets.choices() to generate a random name
-name = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for i in range(8))
+ppp = PPP(env)
+ppp.pppShiftTally = ppp_shift_tally.PppShiftTally()
+ppp.packingLocationResource = simpy.Resource(env, capacity=params.PACKING_LOCATIONS)
 
-# get the tracking objects and simulate our process
-pppShiftTally = ppp_shift_tally.PppShiftTally()
-ppp = PPP(env, pppShiftTally)
+# Run the simulation
 ppp_process = env.process(ppp.checkin(env))
-# TODO end with an event, triggered after the PPP fulfill an order and the ppp work time exceeds the shift work time
-# env.run(until=1000)
 env.run(until=ppp_process)

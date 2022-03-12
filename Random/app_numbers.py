@@ -1,4 +1,4 @@
-import parameters as params
+from Constants import parameters as params
 from Random.generators import get_random_pareto, get_random_poisson
 
 
