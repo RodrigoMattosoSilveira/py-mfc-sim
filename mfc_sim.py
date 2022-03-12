@@ -182,12 +182,19 @@ class PPP(object):
         show_bread_crumbs(self, 'arrives the packing station')
 
         # pack the order
-        #  TODO replace this with the full simulation logic
-        _min = params.TIME_TO_PACK_ORDER_MIN
-        _max = params.TIME_TO_PACK_ORDER_MAX
-        time = random.randrange(_min, _max)
-        yield env.timeout(time)
-        show_bread_crumbs(self, 'packed the order items')
+        with self.packingLocationResource.request() as req:
+            yield req
+
+            if app_numbers.get_random_packing_resources_qtd() == 0:
+                show_bread_crumbs(self, 'OUT of PACKING RESOURCES')
+                self.pppOrderTally.status = order_status.OrderStatus.Out_Of_Packing_Resources.name
+                yield self.env.process(self.order_fulfillment_interrupted())
+
+            _min = params.TIME_TO_PACK_ORDER_MIN
+            _max = params.TIME_TO_PACK_ORDER_MAX
+            time = random.randrange(_min, _max)
+            yield env.timeout(time)
+            show_bread_crumbs(self, 'packed the order items')
 
         # accumulate  packing station time
         station_time = env.now - station_start

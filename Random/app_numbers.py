@@ -17,3 +17,7 @@ def get_random_order_items():
 def get_random_sku_qtd():
     return get_random_poisson(params.RANDOM_SKU_QTD_A)
 
+
+def get_random_packing_resources_qtd():
+    return get_random_poisson(params.RANDOM_PACKING_RESOURCES_QTD_A)
+
