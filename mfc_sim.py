@@ -1,6 +1,7 @@
 import simpy
 import random
 import Random.generators as rng
+import Random.app_numbers as app_numbers
 import Modules.ppp_shift_tally as ppp_shift_tally
 import Modules.order_tally as order_tally
 import secrets
@@ -36,30 +37,12 @@ class PPP(object):
         self.__pppOrderTally = value
 
     def checkin(self, _env):
-        while env.now <= params.SHIFT_WORK_DURATION:
-            """
-            The ppp checked in and is ready to start fulfilling orders
-            """
-            print('%s Start fulfilling orders at %d' % (self.pppShiftTally.pppId, self.env.now))
-
-            # save the existing order tally, and create a new one
-            if self.pppOrderTally is not None:
-                # fulfilled the order
-                print('%s fulfilled order at %s' % (self.pppShiftTally.pppId, env.now))
-                print('%s, %s, %s, %s, %s, %s, %s' % (self.pppOrderTally.items,
-                                                      self.pppOrderTally.orderTime,
-                                                      self.pppOrderTally.pickTime,
-                                                      self.pppOrderTally.packTime,
-                                                      self.pppOrderTally.labelTime,
-                                                      self.pppOrderTally.courierTime,
-                                                      self.pppOrderTally.workTime))
-                print('Accumulated work time: %s\n' % self.pppShiftTally.workTime)
-                self.pppOrderTally = None
-
+        while _env.now <= params.SHIFT_WORK_DURATION:
+            self.pppOrderTally = None
             self.pppOrderTally = order_tally.OrderTally(pppShiftTally.pppId)
-            yield self.env.process(self.order_station(self))
+            show_bread_crumbs(self, 'Order fulfillment started')
+            yield self.env.process(self.order_station())
 
-    @staticmethod
     def order_station(self):
         """
         An order station has an inter arrival time based on distribution, with a mean of 10 and a sigma of 2.6.
@@ -79,17 +62,26 @@ class PPP(object):
         # start counting order station time
         station_start = env.now
 
-        print('%s starts walking to the order station at %s.' % (name, env.now))
+        # print('%s %s starts walking to the order station at %s.' % (self.pppShiftTally.pppId,
+        #                                                             self.pppOrderTally.orderId,
+        #                                                             env.now))
+        show_bread_crumbs(self, 'starts walking to the order station at')
         _min = params.TIME_TO_WALK_TO_ORDER_STATION_MIN
         _max = params.TIME_TO_WALK_TO_ORDER_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        print('%s arrives the order station at %s.' % (name, env.now))
+        # print('%s %s arrives the order station at %s.' % (self.pppShiftTally.pppId,
+        #                                                   self.pppOrderTally.orderId,
+        #                                                   env.now))
+        show_bread_crumbs(self, 'arrives the order station at')
 
         # wait for an order
         time = rng.get_random_normal(params.INTER_ARRIVAL_TIME_MEAN, params.INTER_ARRIVAL_TIME_SIGMA)
         yield env.timeout(time)
-        print('%s got a fulfillment order at %s.' % (self.pppShiftTally.pppId, env.now))
+        # print('%s %s got a fulfillment order at %s.' % (self.pppShiftTally.pppId,
+        #                                                 self.pppOrderTally.orderId,
+        #                                                 env.now))
+        show_bread_crumbs(self, 'got a fulfillment order')
 
         # accumulate order station time
         station_time = env.now - station_start
@@ -98,9 +90,8 @@ class PPP(object):
         self.pppShiftTally.workTime += station_time
 
         # go pick, pack, label, and set the order
-        yield self.env.process(self.inventory_station(self))
+        yield self.env.process(self.inventory_station())
 
-    @staticmethod
     def inventory_station(self):
         """
         - Travel to - We will model travel to the inventory station by selecting from an uniform distribution, based on
@@ -121,42 +112,49 @@ class PPP(object):
         # start counting inventory station time
         station_start = env.now
 
-        print('%s starts walking to the inventory station at %s' % (name, env.now))
+        # print('%s starts walking to the inventory station at %s' % (name, env.now))
+        show_bread_crumbs(self, 'starts walking to the inventory station at')
         _min = params.TIME_TO_WALK_TO_INVENTORY_STATION_MIN
         _max = params.TIME_TO_WALK_TO_INVENTORY_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        print('%s arrives the inventory station at %s.' % (name, env.now))
+        # print('%s arrives the inventory station at %s.' % (name, env.now))
+        show_bread_crumbs(self, 'arrives the inventory station')
 
         # pick the order
         #  TODO replace this with the full simulation logic
-        for i in range(1, self.pppOrderTally.items+1):
-            print('%s Picking order item #%s.' % (self.pppOrderTally.orderId, i))
+        for i in range(1, self.pppOrderTally.items + 1):
+            # print('%s Picking order item #%s.' % (self.pppOrderTally.orderId, i))
+            show_bread_crumbs(self, 'Picking order item #')
             if i > 0:
                 # walk to pick the next item
                 _min = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MIN
                 _max = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MAX
                 time = random.randrange(_min, _max)
                 yield env.timeout(time)
-            # pick this item and stop this order fulfillment if out of inventory
+
+                # Interrupt the process of we do not have inventory
+                # if app_numbers.get_random_sku_qtd() == 0:
+                #     print('%s %s OOS ' % (self.pppShiftTally.pppId, self.pppOrderTally.orderId))
+                #     yield self.env.process(self.order_fulfillment_interrupted(self))
 
             # Assume we have the inventory! Simulate the pick time
             _min = params.TIME_TO_PICK_ITEM_MIN
             _max = params.TIME_TO_PICK_ITEM_MAX
             time = random.randrange(_min, _max)
             yield env.timeout(time)
-        print('%s picked the order inventory items %s' % (self.pppShiftTally.pppId, env.now))
 
         # accumulate inventory station time
+        # print('%s picked the order inventory items %s' % (self.pppShiftTally.pppId, env.now))
+        show_bread_crumbs(self, 'picked the order items')
         station_time = env.now - station_start
         self.pppOrderTally.pickTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
 
         # go pack, label, and set the order
-        yield self.env.process(self.packing_station(self))
+        yield self.env.process(self.packing_station())
 
-    @staticmethod
     def packing_station(self):
         """
             - Travel to - We will model travel to the packing station by selecting from an uniform distribution, based
@@ -179,12 +177,14 @@ class PPP(object):
         # start counting packing station time
         station_start = env.now
 
-        print('%s starts walking to the packing station at %s.' % (name, env.now))
+        # print('%s starts walking to the packing station at %s.' % (name, env.now))
+        show_bread_crumbs(self, 'starts walking to the packing station')
         _min = params.TIME_TO_WALK_TO_PACKING_STATION_MIN
         _max = params.TIME_TO_WALK_TO_PACKING_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        print('%s arrives the packing station at %s' % (name, env.now))
+        # print('%s arrives the packing station at %s' % (name, env.now))
+        show_bread_crumbs(self, 'arrives the packing station')
 
         # pack the order
         #  TODO replace this with the full simulation logic
@@ -192,7 +192,8 @@ class PPP(object):
         _max = params.TIME_TO_PACK_ORDER_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        print('%s picked the order items %s' % (self.pppShiftTally.pppId, env.now))
+        # print('%s packed the order items %s' % (self.pppShiftTally.pppId, env.now))
+        show_bread_crumbs(self, 'packed the order items')
 
         # accumulate  packing station time
         station_time = env.now - station_start
@@ -201,9 +202,8 @@ class PPP(object):
         self.pppShiftTally.workTime += station_time
 
         # go pack, label, and set the order
-        yield self.env.process(self.labeling_station(self))
+        yield self.env.process(self.labeling_station())
 
-    @staticmethod
     def labeling_station(self):
         """
             - Travel to - We will model travel to the labeling station by selecting from an uniform distribution, based
@@ -226,12 +226,14 @@ class PPP(object):
         # start counting labeling station time
         station_start = env.now
 
-        print('%s starts walking to the labeling station at %s.' % (name, env.now))
+        # print('%s starts walking to the labeling station at %s.' % (name, env.now))
+        show_bread_crumbs(self, 'starts walking to the labeling station')
         _min = params.TIME_TO_WALK_TO_LABELING_STATION_MIN
         _max = params.TIME_TO_WALK_TO_LABELING_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        print('%s arrives the labeling station at %s' % (name, env.now))
+        # print('%s arrives the labeling station at %s' % (name, env.now))
+        show_bread_crumbs(self, ' arrives the labeling station')
 
         # label the order
         #  TODO replace this with the full simulation logic
@@ -239,7 +241,8 @@ class PPP(object):
         _max = params.TIME_TO_LABEL_ORDER_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        print('%s labeled the order items %s' % (self.pppShiftTally.pppId, env.now))
+        # print('%s labeled the order items %s' % (self.pppShiftTally.pppId, env.now))
+        show_bread_crumbs(self, 'labeled the order items')
 
         # accumulate  labeling station time
         station_time = env.now - station_start
@@ -248,9 +251,8 @@ class PPP(object):
         self.pppShiftTally.workTime += station_time
 
         # go pack, label, and set the order
-        yield self.env.process(self.courier_station(self))
+        yield self.env.process(self.courier_station())
 
-    @staticmethod
     def courier_station(self):
         """
             - Travel to - We will model travel to the courier station by selecting from an uniform distribution, based
@@ -266,12 +268,14 @@ class PPP(object):
         # start counting courier station time
         station_start = env.now
 
-        print('%s starts walking to the courier station at %s.' % (name, env.now))
+        # print('%s starts walking to the courier station at %s.' % (name, env.now))
+        show_bread_crumbs(self, 'starts walking to the courier station')
         _min = params.TIME_TO_WALK_TO_COURIER_STATION_MIN
         _max = params.TIME_TO_WALK_TO_COURIER_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        print('%s arrives the courier station at %s.' % (name, env.now))
+        # print('%s arrives the courier station at %s.' % (name, env.now))
+        show_bread_crumbs(self, 'arrives the courier station')
 
         # label the order
         #  TODO replace this with the full simulation logic
@@ -279,20 +283,40 @@ class PPP(object):
         _max = params.TIME_TO_PLACE_ORDER_AT_COURIER_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        print('%s placed the order at the courier station %s' % (self.pppShiftTally.pppId, env.now))
+        # print('%s placed the order at the courier station %s' % (self.pppShiftTally.pppId, env.now))
+        show_bread_crumbs(self, 'placed the order at the courier station')
 
         # accumulate  courier station time
         station_time = env.now - station_start
         self.pppOrderTally.courierTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
+        self.pppShiftTally.orders += 1
 
         # Done with this order, go handle the next order
 
+        # go pack, label, and set the order
+        yield self.env.process(self.order_stats())
 
-def reached_end_of_shift(_env):
-    yield _env.timeout(1)
-    print('Monty Python’s Flying Circus')
+    def order_stats(self):
+        # fulfilled the order
+        show_bread_crumbs(self, 'fulfilled order')
+        print('%s, %s, %s, %s, %s, %s, %s %s' % (self.pppOrderTally.items,
+                                                 self.pppOrderTally.orderTime,
+                                                 self.pppOrderTally.pickTime,
+                                                 self.pppOrderTally.packTime,
+                                                 self.pppOrderTally.labelTime,
+                                                 self.pppOrderTally.courierTime,
+                                                 self.pppOrderTally.workTime,
+                                                 self.pppShiftTally.workTime))
+
+        # Done with this order, go handle the next order
+        # must add it to make it a generator
+        yield env.timeout(0)
+
+
+def show_bread_crumbs(self, detail):
+    print('%s %s %s at %s' % (self.pppShiftTally.pppId, self.pppOrderTally.orderId, detail, self.env.now))
 
 
 """
@@ -304,7 +328,7 @@ We will use one environment to simulate a MFC shift's work
         Packing boxes
         Shipping labels
         Label printer
-        Couries delivery slots
+        Couriers' delivery slots
     We will simulate one or more PPP order fulfillment work
         We will use a OrderSimulator to simulate a PPP order fulfillment for a PPPs whole shift
             PppShiftTally - The OrderSimulator uses it to collect the each PPP's shift data
