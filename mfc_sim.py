@@ -19,9 +19,6 @@ class PPP(object):
         self.__pppShiftTally = _ppp_shift_tally
         self.__pppOrderTally = None
 
-        # Start the run process everytime an instance is created.
-        self.action = _env.process(self.checkin())
-
     @property
     def pppShiftTally(self):
         return self.__pppShiftTally
@@ -38,8 +35,8 @@ class PPP(object):
     def pppOrderTally(self, value):
         self.__pppOrderTally = value
 
-    def checkin(self):
-        while True:
+    def checkin(self, _env):
+        while env.now <= params.SHIFT_WORK_DURATION:
             """
             The ppp checked in and is ready to start fulfilling orders
             """
@@ -50,12 +47,12 @@ class PPP(object):
                 # fulfilled the order
                 print('%s fulfilled order at %s' % (self.pppShiftTally.pppId, env.now))
                 print('%s, %s, %s, %s, %s, %s, %s' % (self.pppOrderTally.items,
-                                                        self.pppOrderTally.orderTime,
-                                                        self.pppOrderTally.pickTime,
-                                                        self.pppOrderTally.packTime,
-                                                        self.pppOrderTally.labelTime,
-                                                        self.pppOrderTally.courierTime,
-                                                        self.pppOrderTally.workTime))
+                                                      self.pppOrderTally.orderTime,
+                                                      self.pppOrderTally.pickTime,
+                                                      self.pppOrderTally.packTime,
+                                                      self.pppOrderTally.labelTime,
+                                                      self.pppOrderTally.courierTime,
+                                                      self.pppOrderTally.workTime))
                 print('Accumulated work time: %s\n' % self.pppShiftTally.workTime)
                 self.pppOrderTally = None
 
@@ -282,6 +279,11 @@ class PPP(object):
         # Done with this order, go handle the next order
 
 
+def reached_end_of_shift(_env):
+    yield _env.timeout(1)
+    print('Monty Python’s Flying Circus')
+
+
 """
 See https://simpy.readthedocs.io/en/latest/simpy_intro/shared_resources.html
 We will use one environment to simulate a MFC shift's work
@@ -306,5 +308,7 @@ name = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for i in r
 pppShiftTally = ppp_shift_tally.PppShiftTally()
 orderTally = order_tally.OrderTally(pppShiftTally.pppId)
 ppp = PPP(env, pppShiftTally)
+ppp_process = env.process(ppp.checkin(env))
 # TODO end with an event, triggered after the PPP fulfill an order and the ppp work time exceeds the shift work time
-env.run(until=1000)
+# env.run(until=1000)
+env.run(until=ppp_process)
