@@ -19,6 +19,7 @@ class PPP(object):
         self.__pppShiftTally = None
         self.__pppOrderTally = None
         self.__packingLocationResource = None
+        self.__labelPrintersResource = None
 
     @property
     def pppShiftTally(self):
@@ -43,6 +44,14 @@ class PPP(object):
     @packingLocationResource.setter
     def packingLocationResource(self, value):
         self.__packingLocationResource = value
+
+    @property
+    def labelPrintersResource(self):
+        return self.__labelPrintersResource
+
+    @labelPrintersResource.setter
+    def labelPrintersResource(self, value):
+        self.__labelPrintersResource = value
 
     def checkin(self, _env):
         while _env.now <= params.SHIFT_WORK_DURATION:
@@ -235,12 +244,18 @@ class PPP(object):
         show_bread_crumbs(self, ' arrives the labeling station')
 
         # label the order
-        #  TODO replace this with the full simulation logic
-        _min = params.TIME_TO_LABEL_ORDER_MIN
-        _max = params.TIME_TO_LABEL_ORDER_MAX
-        time = random.randrange(_min, _max)
-        yield env.timeout(time)
-        show_bread_crumbs(self, 'labeled the order items')
+        with self.labelPrintersResource.request() as req:
+            yield req
+            if app_numbers.get_random_labeling_resources_qtd() == 0:
+                show_bread_crumbs(self, 'Out of Labeling Resources')
+                self.pppOrderTally.status = order_status.OrderStatus.Out_Of_Labeling_Resources.name
+                yield self.env.process(self.order_fulfillment_interrupted())
+
+            _min = params.TIME_TO_LABEL_ORDER_MIN
+            _max = params.TIME_TO_LABEL_ORDER_MAX
+            time = random.randrange(_min, _max)
+            yield env.timeout(time)
+            show_bread_crumbs(self, 'labeled the order items')
 
         # accumulate  labeling station time
         station_time = env.now - station_start
@@ -352,6 +367,7 @@ env = simpy.Environment()
 ppp = PPP(env)
 ppp.pppShiftTally = ppp_shift_tally.PppShiftTally()
 ppp.packingLocationResource = simpy.Resource(env, capacity=params.PACKING_LOCATIONS)
+ppp.labelPrintersResource = simpy.Resource(env, capacity=params.LABEL_PRINTERS)
 
 # Run the simulation
 ppp_process = env.process(ppp.checkin(env))
