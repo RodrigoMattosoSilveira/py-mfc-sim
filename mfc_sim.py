@@ -5,6 +5,7 @@ import Random.app_numbers as app_numbers
 import Modules.ppp_shift_tally as ppp_shift_tally
 import Modules.order_tally as order_tally
 from Constants import parameters as params
+from Constants import OrderStatus as order_status
 
 
 class PPP(object):
@@ -132,6 +133,7 @@ class PPP(object):
                 # TODO Review this with someone who understands this better than I do!
                 if app_numbers.get_random_sku_qtd() == 0:
                     show_bread_crumbs(self, 'OOS')
+                    self.pppOrderTally.status = order_status.OrderStatus.Out_Of_Stock.name
                     yield self.env.process(self.order_fulfillment_interrupted())
 
             # Assume we have the inventory! Simulate the pick time
@@ -282,6 +284,7 @@ class PPP(object):
         # Done with this order, go handle the next order
 
         # go pack, label, and set the order
+        self.pppOrderTally.status = order_status.OrderStatus.Fulfilled.name
         yield self.env.process(self.order_stats())
 
     def order_stats(self):
@@ -308,14 +311,17 @@ def show_bread_crumbs(self, detail):
 
 
 def print_oder_stats(self):
-    print('%s, %s, %s, %s, %s, %s, %s %s\n' % (self.pppOrderTally.items,
-                                               self.pppOrderTally.orderTime,
-                                               self.pppOrderTally.pickTime,
-                                               self.pppOrderTally.packTime,
-                                               self.pppOrderTally.labelTime,
-                                               self.pppOrderTally.courierTime,
-                                               self.pppOrderTally.workTime,
-                                               self.pppShiftTally.workTime))
+    print('%s, %s, %s, %s, %s, %s, %s, %s, %s %s %a\n' % (self.pppShiftTally.pppId,
+                                                          self.pppOrderTally.orderId,
+                                                          self.pppOrderTally.items,
+                                                          self.pppOrderTally.orderTime,
+                                                          self.pppOrderTally.pickTime,
+                                                          self.pppOrderTally.packTime,
+                                                          self.pppOrderTally.labelTime,
+                                                          self.pppOrderTally.courierTime,
+                                                          self.pppOrderTally.workTime,
+                                                          self.pppShiftTally.workTime,
+                                                          self.pppOrderTally.status))
 
 
 """
