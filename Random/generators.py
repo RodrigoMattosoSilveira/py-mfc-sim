@@ -16,13 +16,12 @@ def get_random_pareto(a, m):
     return random_number
 
 
-def get_random_order_items():
-    new_order_items = get_random_pareto(1, 1.160964)
-    if new_order_items > 12:
-        new_order_items = 12
-    else:
-        if 3 < new_order_items < 12:
-            new_order_items = 6
-        else:
-            new_order_items = 1
-    return new_order_items
+def get_random_poisson(a):
+    # print('mu:', _mu)
+    # print('sigma:', _sigma)
+    s = np.random.poisson(a, 1000)
+    j = random.randint(1, 100)
+    random_number = trunc(s[j] + 0.5)
+    return random_number
+
+

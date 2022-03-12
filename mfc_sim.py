@@ -1,6 +1,6 @@
 import simpy
 import random
-import random_numbers.my_random_calculators as mrn
+import Random.generators as rng
 import Modules.ppp_shift_tally as ppp_shift_tally
 import Modules.order_tally as order_tally
 import secrets
@@ -87,7 +87,7 @@ class PPP(object):
         print('%s arrives the order station at %s.' % (name, env.now))
 
         # wait for an order
-        time = mrn.get_random_normal(params.INTER_ARRIVAL_TIME_MEAN, params.INTER_ARRIVAL_TIME_SIGMA)
+        time = rng.get_random_normal(params.INTER_ARRIVAL_TIME_MEAN, params.INTER_ARRIVAL_TIME_SIGMA)
         yield env.timeout(time)
         print('%s got a fulfillment order at %s.' % (self.pppShiftTally.pppId, env.now))
 
@@ -130,10 +130,21 @@ class PPP(object):
 
         # pick the order
         #  TODO replace this with the full simulation logic
-        _min = params.TIME_TO_PICK_ITEM_MIN
-        _max = params.TIME_TO_PICK_ITEM_MAX
-        time = random.randrange(_min, _max)
-        yield env.timeout(time)
+        for i in range(1, self.pppOrderTally.items+1):
+            print('%s Picking order item #%s.' % (self.pppOrderTally.orderId, i))
+            if i > 0:
+                # walk to pick the next item
+                _min = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MIN
+                _max = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MAX
+                time = random.randrange(_min, _max)
+                yield env.timeout(time)
+            # pick this item and stop this order fulfillment if out of inventory
+
+            # Assume we have the inventory! Simulate the pick time
+            _min = params.TIME_TO_PICK_ITEM_MIN
+            _max = params.TIME_TO_PICK_ITEM_MAX
+            time = random.randrange(_min, _max)
+            yield env.timeout(time)
         print('%s picked the order inventory items %s' % (self.pppShiftTally.pppId, env.now))
 
         # accumulate inventory station time
@@ -306,7 +317,6 @@ name = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for i in r
 
 # get the tracking objects and simulate our process
 pppShiftTally = ppp_shift_tally.PppShiftTally()
-orderTally = order_tally.OrderTally(pppShiftTally.pppId)
 ppp = PPP(env, pppShiftTally)
 ppp_process = env.process(ppp.checkin(env))
 # TODO end with an event, triggered after the PPP fulfill an order and the ppp work time exceeds the shift work time
