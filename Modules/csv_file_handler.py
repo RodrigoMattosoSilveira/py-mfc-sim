@@ -1,11 +1,13 @@
 # https://www.pythontutorial.net/python-basics/python-write-csv-file/
 
 import csv
+import threading
 
 
 class CSV(object):
-    def __init__(self, _file_name):
+    def __init__(self, _file_name, _orderTallyLogLock):
         self.__fileName = _file_name
+        self.__orderTallyLogLock = _orderTallyLogLock
         self.__file = None
         self.__writer = None
 
@@ -16,6 +18,14 @@ class CSV(object):
     @fileName.setter
     def fileName(self, value):
         self.__fileName = value
+
+    @property
+    def orderTallyLogLock(self):
+        return self.__orderTallyLogLock
+
+    @orderTallyLogLock.setter
+    def orderTallyLogLock(self, value):
+        self.__orderTallyLogLock = value
 
     @property
     def file(self):
@@ -42,7 +52,12 @@ class CSV(object):
         self.writer = csv.writer(file)
 
     def write(self, row):
+        while self.orderTallyLogLock.locked():
+            continue
+
+        self.orderTallyLogLock.acquire()
         self.writer.writerow(row)
+        self.orderTallyLogLock.release()
 
     def close(self):
         self.file.close()

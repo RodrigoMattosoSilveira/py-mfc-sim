@@ -8,6 +8,7 @@ from Constants import parameters as params
 from Constants import OrderStatus as orderStatus
 import Modules.csv_file_handler as csv
 import os
+import threading
 
 
 class PPP(object):
@@ -437,7 +438,8 @@ labelPrintersResource = simpy.Resource(simulation_environment, capacity=params.L
 
 if os.path.isfile(params.ORDER_TALLY_LOG):
     os.remove(params.ORDER_TALLY_LOG)
-orderTallyLog = csv.CSV(params.ORDER_TALLY_LOG)
+orderTallyLogLock = threading.Lock()
+orderTallyLog = csv.CSV(params.ORDER_TALLY_LOG, orderTallyLogLock)
 orderTallyLog.open()
 header = ['pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'labelTime', 'courierTime', 'breakTime',
           'totalOrderTime', 'status']
