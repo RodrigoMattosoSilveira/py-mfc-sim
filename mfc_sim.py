@@ -73,7 +73,7 @@ class PPP(object):
         self.__orderTallyLog = value
 
     def checkin(self, _env):
-        order_simulation_status = True
+        # order_simulation_status = True
         while self.env.now <= params.SHIFT_WORK_DURATION:
             order_simulation_status = True
 
@@ -107,6 +107,33 @@ class PPP(object):
 
             # log
             self.print_order_stats()
+
+            # Before handling a new order, check whether the PPP worked a full shift, enough to take a shift break
+            break_time = 0
+            if self.pppShiftTally.nextShiftBreak < _env.now < params.SHIFT_WORK_DURATION:
+                # PPP is due for a shift break
+                self.show_bread_crumbs('taking a %s seconds shift break' % params.SHIFT_BREAK_DURATION)
+                yield self.env.timeout(params.SHIFT_BREAK_DURATION)
+                self.pppShiftTally.nextShiftBreak += self.pppShiftTally.nextShiftBreak
+                self.pppShiftTally.nextHourBreak = self.env.now + (3600 - params.HOUR_BREAK_DURATION)
+                break_time = params.SHIFT_BREAK_DURATION
+            else:
+                if self.env.now > self.pppShiftTally.nextHourBreak:
+                    # PPP is due for a shift break
+                    self.show_bread_crumbs('taking a %s seconds hourly break' % params.HOUR_BREAK_DURATION)
+                    yield self.env.timeout(params.HOUR_BREAK_DURATION)
+                    self.pppShiftTally.nextHourBreak = self.env.now + (3600 - params.HOUR_BREAK_DURATION)
+                    break_time = params.HOUR_BREAK_DURATION
+
+            if break_time > 0:
+                # Add a break orderTally
+                self.pppOrderTally = None
+                self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
+                self.pppOrderTally.breakTime = break_time
+                self.pppOrderTally.workTime += break_time
+                self.pppOrderTally.status = orderStatus.OrderStatus.Break.name
+                self.pppShiftTally.workTime += break_time
+                self.print_order_stats()
 
     def order_station(self):
         """
@@ -180,7 +207,7 @@ class PPP(object):
         # pick the order
         #  TODO replace this with the full simulation logic
         for i in range(1, self.pppOrderTally.items + 1):
-            self.show_bread_crumbs('Picking order item #%s' %i)
+            self.show_bread_crumbs('Picking order item #%s' % i)
             if i > 0:
                 # walk to pick the next item
                 _min = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MIN
@@ -363,21 +390,24 @@ class PPP(object):
 
     def print_order_stats(self):
         # print
-        print('%s, %s, %s, %s, %s, %s, %s, %s, %s %s %a\n' % (self.pppShiftTally.pppId,
-                                                              self.pppOrderTally.orderId,
-                                                              self.pppOrderTally.items,
-                                                              self.pppOrderTally.orderTime,
-                                                              self.pppOrderTally.pickTime,
-                                                              self.pppOrderTally.packTime,
-                                                              self.pppOrderTally.labelTime,
-                                                              self.pppOrderTally.courierTime,
-                                                              self.pppOrderTally.workTime,
-                                                              self.pppShiftTally.workTime,
-                                                              self.pppOrderTally.status))
+        print('%s, %s, %s, %s, %s, %s, %s, %s, %s %s %s %a\n' % (
+            self.pppShiftTally.pppId,
+            self.pppOrderTally.orderId,
+            self.pppOrderTally.items,
+            self.pppOrderTally.orderTime,
+            self.pppOrderTally.pickTime,
+            self.pppOrderTally.packTime,
+            self.pppOrderTally.labelTime,
+            self.pppOrderTally.courierTime,
+            self.pppOrderTally.breakTime,
+            self.pppOrderTally.workTime,
+            self.pppShiftTally.workTime,
+            self.pppOrderTally.status))
         # log
         list_array = [self.pppShiftTally.pppId, self.pppOrderTally.orderId, self.pppOrderTally.items,
                       self.pppOrderTally.orderTime, self.pppOrderTally.pickTime, self.pppOrderTally.packTime,
-                      self.pppOrderTally.labelTime, self.pppOrderTally.courierTime, self.pppOrderTally.workTime,
+                      self.pppOrderTally.labelTime, self.pppOrderTally.courierTime,  self.pppOrderTally.breakTime,
+                      self.pppOrderTally.workTime,
                       self.pppOrderTally.status]
         self.orderTallyLog.write(list_array)
 
@@ -400,14 +430,16 @@ We will use one environment to simulate a MFC shift's work
 
 # Set up the simulation
 simulation_environment = simpy.Environment()
-packingLocationResource = simpy.Resource(simulation_environment, capacity=params.PACKING_LOCATIONS)  # one for the whole simulation
-labelPrintersResource = simpy.Resource(simulation_environment, capacity=params.LABEL_PRINTERS)  # one for the whole simulation
+# one for the whole simulation
+packingLocationResource = simpy.Resource(simulation_environment, capacity=params.PACKING_LOCATIONS)
+# one for the whole simulation
+labelPrintersResource = simpy.Resource(simulation_environment, capacity=params.LABEL_PRINTERS)
 
 if os.path.isfile(params.ORDER_TALLY_LOG):
     os.remove(params.ORDER_TALLY_LOG)
 orderTallyLog = csv.CSV(params.ORDER_TALLY_LOG)
 orderTallyLog.open()
-header = ['pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'labelTime', 'courierTime',
+header = ['pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'labelTime', 'courierTime', 'breakTime',
           'totalOrderTime', 'status']
 orderTallyLog.write(header)
 
