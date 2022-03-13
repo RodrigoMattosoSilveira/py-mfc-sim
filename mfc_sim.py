@@ -7,6 +7,7 @@ import Modules.order_tally as order_tally
 from Constants import parameters as params
 from Constants import OrderStatus as orderStatus
 import Modules.csv_file_handler as csv
+import os
 
 
 class PPP(object):
@@ -392,6 +393,9 @@ We will use one environment to simulate a MFC shift's work
 env = simpy.Environment()
 packingLocationResource = simpy.Resource(env, capacity=params.PACKING_LOCATIONS)  # one for the whole simulation
 labelPrintersResource = simpy.Resource(env, capacity=params.LABEL_PRINTERS)  # one for the whole simulation
+
+if os.path.isfile(params.CSV_FILENAME):
+    os.remove(params.CSV_FILENAME)
 csvFile = csv.CSV(params.CSV_FILENAME)
 csvFile.open()
 header = ['pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'labelTime', 'courierTime',
