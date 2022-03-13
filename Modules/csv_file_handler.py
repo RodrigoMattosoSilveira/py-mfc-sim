@@ -1,7 +1,6 @@
 # https://www.pythontutorial.net/python-basics/python-write-csv-file/
 
 import csv
-import threading
 
 
 class CSV(object):
