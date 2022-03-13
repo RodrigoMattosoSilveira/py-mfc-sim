@@ -17,12 +17,20 @@ class PPP(object):
     """
 
     def __init__(self, _env):
-        self.env = env
+        self.__env = _env
         self.__pppShiftTally = None
         self.__pppOrderTally = None
         self.__packingLocationResource = None
         self.__labelPrintersResource = None
         self.__orderTallyLog = None
+
+    @property
+    def env(self):
+        return self.__env
+
+    @env.setter
+    def env(self, value):
+        self.__env = value
 
     @property
     def pppShiftTally(self):
@@ -66,7 +74,7 @@ class PPP(object):
 
     def checkin(self, _env):
         order_simulation_status = True
-        while _env.now <= params.SHIFT_WORK_DURATION:
+        while self.env.now <= params.SHIFT_WORK_DURATION:
             order_simulation_status = True
 
             self.pppOrderTally = None
@@ -118,23 +126,23 @@ class PPP(object):
         """
         # start counting order station time
         simulation_status = True
-        station_start = env.now
+        station_start = self.env.now
 
         self.show_bread_crumbs('starts walking to the order station at')
         _min = params.TIME_TO_WALK_TO_ORDER_STATION_MIN
         _max = params.TIME_TO_WALK_TO_ORDER_STATION_MAX
         time = random.randrange(_min, _max)
-        yield env.timeout(time)
+        yield self.env.timeout(time)
         self.show_bread_crumbs('arrives the order station at')
 
         # wait for an order
         time = rng.get_random_normal(params.INTER_ARRIVAL_TIME_MEAN, params.INTER_ARRIVAL_TIME_SIGMA)
-        yield env.timeout(time)
+        yield self.env.timeout(time)
         self.show_bread_crumbs('got a fulfillment order')
 
         # accumulate order station time
         self.show_bread_crumbs('leaving order station')
-        station_time = env.now - station_start
+        station_time = self.env.now - station_start
         self.pppOrderTally.orderTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
@@ -160,13 +168,13 @@ class PPP(object):
         """
         # start counting inventory station time
         simulation_status = True
-        station_start = env.now
+        station_start = self.env.now
 
         self.show_bread_crumbs('starts walking to the inventory station at')
         _min = params.TIME_TO_WALK_TO_INVENTORY_STATION_MIN
         _max = params.TIME_TO_WALK_TO_INVENTORY_STATION_MAX
         time = random.randrange(_min, _max)
-        yield env.timeout(time)
+        yield self.env.timeout(time)
         self.show_bread_crumbs('arrives the inventory station')
 
         # pick the order
@@ -178,7 +186,7 @@ class PPP(object):
                 _min = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MIN
                 _max = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MAX
                 time = random.randrange(_min, _max)
-                yield env.timeout(time)
+                yield self.env.timeout(time)
 
             # Interrupt the process of we do not have inventory
             # TODO Review this with someone who understands this better than I do!
@@ -190,13 +198,13 @@ class PPP(object):
                 _min = params.TIME_TO_PICK_ITEM_MIN
                 _max = params.TIME_TO_PICK_ITEM_MAX
                 time = random.randrange(_min, _max)
-                yield env.timeout(time)
+                yield self.env.timeout(time)
             if not simulation_status:
                 break
 
         # accumulate inventory station time
         self.show_bread_crumbs('leaving pick station')
-        station_time = env.now - station_start
+        station_time = self.env.now - station_start
         self.pppOrderTally.pickTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
@@ -224,13 +232,13 @@ class PPP(object):
         """
         # start counting packing station time
         simulation_status = True
-        station_start = env.now
+        station_start = self.env.now
 
         self.show_bread_crumbs('starts walking to the packing station')
         _min = params.TIME_TO_WALK_TO_PACKING_STATION_MIN
         _max = params.TIME_TO_WALK_TO_PACKING_STATION_MAX
         time = random.randrange(_min, _max)
-        yield env.timeout(time)
+        yield self.env.timeout(time)
         self.show_bread_crumbs('arrives the packing station')
 
         # pack the order
@@ -245,12 +253,12 @@ class PPP(object):
                 _min = params.TIME_TO_PACK_ORDER_MIN
                 _max = params.TIME_TO_PACK_ORDER_MAX
                 time = random.randrange(_min, _max)
-                yield env.timeout(time)
+                yield self.env.timeout(time)
                 self.show_bread_crumbs('packed the order items')
 
         # accumulate  packing station time
         self.show_bread_crumbs('leaving pack station')
-        station_time = env.now - station_start
+        station_time = self.env.now - station_start
         self.pppOrderTally.packTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
@@ -278,13 +286,13 @@ class PPP(object):
         """
         # start counting labeling station time
         simulation_status = True
-        station_start = env.now
+        station_start = self.env.now
 
         self.show_bread_crumbs('starts walking to the labeling station')
         _min = params.TIME_TO_WALK_TO_LABELING_STATION_MIN
         _max = params.TIME_TO_WALK_TO_LABELING_STATION_MAX
         time = random.randrange(_min, _max)
-        yield env.timeout(time)
+        yield self.env.timeout(time)
         self.show_bread_crumbs('arrived at the labeling station')
 
         # label the order
@@ -298,12 +306,12 @@ class PPP(object):
                 _min = params.TIME_TO_LABEL_ORDER_MIN
                 _max = params.TIME_TO_LABEL_ORDER_MAX
                 time = random.randrange(_min, _max)
-                yield env.timeout(time)
+                yield self.env.timeout(time)
                 self.show_bread_crumbs('labeled the order items')
 
         # accumulate  labeling station time
         self.show_bread_crumbs('leaving labeling station')
-        station_time = env.now - station_start
+        station_time = self.env.now - station_start
         self.pppOrderTally.labelTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
@@ -324,13 +332,13 @@ class PPP(object):
         """
         # start counting courier station time
         simulation_status = True
-        station_start = env.now
+        station_start = self.env.now
 
         self.show_bread_crumbs('starts walking to the courier station')
         _min = params.TIME_TO_WALK_TO_COURIER_STATION_MIN
         _max = params.TIME_TO_WALK_TO_COURIER_STATION_MAX
         time = random.randrange(_min, _max)
-        yield env.timeout(time)
+        yield self.env.timeout(time)
         self.show_bread_crumbs('arrives the courier station')
 
         # label the order
@@ -338,11 +346,11 @@ class PPP(object):
         _min = params.TIME_TO_PLACE_ORDER_AT_COURIER_STATION_MIN
         _max = params.TIME_TO_PLACE_ORDER_AT_COURIER_STATION_MAX
         time = random.randrange(_min, _max)
-        yield env.timeout(time)
+        yield self.env.timeout(time)
         self.show_bread_crumbs('placed the order at the courier station')
 
         # accumulate  courier station time
-        station_time = env.now - station_start
+        station_time = self.env.now - station_start
         self.pppOrderTally.courierTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
@@ -391,9 +399,9 @@ We will use one environment to simulate a MFC shift's work
 """
 
 # Set up the simulation
-env = simpy.Environment()
-packingLocationResource = simpy.Resource(env, capacity=params.PACKING_LOCATIONS)  # one for the whole simulation
-labelPrintersResource = simpy.Resource(env, capacity=params.LABEL_PRINTERS)  # one for the whole simulation
+simulation_environment = simpy.Environment()
+packingLocationResource = simpy.Resource(simulation_environment, capacity=params.PACKING_LOCATIONS)  # one for the whole simulation
+labelPrintersResource = simpy.Resource(simulation_environment, capacity=params.LABEL_PRINTERS)  # one for the whole simulation
 
 if os.path.isfile(params.ORDER_TALLY_LOG):
     os.remove(params.ORDER_TALLY_LOG)
@@ -403,13 +411,13 @@ header = ['pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'lab
           'totalOrderTime', 'status']
 orderTallyLog.write(header)
 
-ppp = PPP(env)
+ppp = PPP(simulation_environment)
 ppp.pppShiftTally = ppp_shift_tally.PppShiftTally()  # set PPP's tally
 ppp.orderTallyLog = orderTallyLog  # set simulation CSV file
 ppp.packingLocationResource = packingLocationResource  # set simulation Packing Location Resource
 ppp.labelPrintersResource = labelPrintersResource  # set simulation Label Printer Resource
 
 # Run the simulation
-ppp_process = env.process(ppp.checkin(env))
-env.run(until=ppp_process)
+ppp_process = simulation_environment.process(ppp.checkin(simulation_environment))
+simulation_environment.run(until=ppp_process)
 orderTallyLog.close()
