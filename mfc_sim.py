@@ -22,7 +22,7 @@ class PPP(object):
         self.__pppOrderTally = None
         self.__packingLocationResource = None
         self.__labelPrintersResource = None
-        self.__csvFile = None
+        self.__orderTallyLog = None
 
     @property
     def pppShiftTally(self):
@@ -57,19 +57,48 @@ class PPP(object):
         self.__labelPrintersResource = value
 
     @property
-    def csvFile(self):
-        return self.__csvFile
+    def orderTallyLog(self):
+        return self.__orderTallyLog
 
-    @csvFile.setter
-    def csvFile(self, value):
-        self.__csvFile = value
+    @orderTallyLog.setter
+    def orderTallyLog(self, value):
+        self.__orderTallyLog = value
 
     def checkin(self, _env):
+        order_simulation_status = True
         while _env.now <= params.SHIFT_WORK_DURATION:
+            order_simulation_status = True
+
             self.pppOrderTally = None
             self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
-            show_bread_crumbs(self, 'Order fulfillment started')
-            yield self.env.process(self.order_station())
+            self.show_bread_crumbs('Order fulfillment started')
+
+            # get the order
+            if order_simulation_status:
+                order_simulation_status = yield self.env.process(self.order_station())
+
+            # pick the order
+            if order_simulation_status:
+                order_simulation_status = yield self.env.process(self.inventory_station())
+
+            # pack the order
+            if order_simulation_status:
+                order_simulation_status = yield self.env.process(self.packing_station())
+
+            # label the order
+            if order_simulation_status:
+                order_simulation_status = yield self.env.process(self.labeling_station())
+
+            # place the order at the courier status
+            if order_simulation_status:
+                order_simulation_status = yield self.env.process(self.courier_station())
+
+            # place the order at the courier status
+            if order_simulation_status:
+                self.pppOrderTally.status = orderStatus.OrderStatus.Fulfilled.name
+
+            # log
+            self.print_order_stats()
 
     def order_station(self):
         """
@@ -88,28 +117,29 @@ class PPP(object):
         time;
         """
         # start counting order station time
+        simulation_status = True
         station_start = env.now
 
-        show_bread_crumbs(self, 'starts walking to the order station at')
+        self.show_bread_crumbs('starts walking to the order station at')
         _min = params.TIME_TO_WALK_TO_ORDER_STATION_MIN
         _max = params.TIME_TO_WALK_TO_ORDER_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        show_bread_crumbs(self, 'arrives the order station at')
+        self.show_bread_crumbs('arrives the order station at')
 
         # wait for an order
         time = rng.get_random_normal(params.INTER_ARRIVAL_TIME_MEAN, params.INTER_ARRIVAL_TIME_SIGMA)
         yield env.timeout(time)
-        show_bread_crumbs(self, 'got a fulfillment order')
+        self.show_bread_crumbs('got a fulfillment order')
 
         # accumulate order station time
+        self.show_bread_crumbs('leaving order station')
         station_time = env.now - station_start
         self.pppOrderTally.orderTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
 
-        # go pick, pack, label, and set the order
-        yield self.env.process(self.inventory_station())
+        return simulation_status
 
     def inventory_station(self):
         """
@@ -129,19 +159,20 @@ class PPP(object):
         distributions based on the average pick time;
         """
         # start counting inventory station time
+        simulation_status = True
         station_start = env.now
 
-        show_bread_crumbs(self, 'starts walking to the inventory station at')
+        self.show_bread_crumbs('starts walking to the inventory station at')
         _min = params.TIME_TO_WALK_TO_INVENTORY_STATION_MIN
         _max = params.TIME_TO_WALK_TO_INVENTORY_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        show_bread_crumbs(self, 'arrives the inventory station')
+        self.show_bread_crumbs('arrives the inventory station')
 
         # pick the order
         #  TODO replace this with the full simulation logic
         for i in range(1, self.pppOrderTally.items + 1):
-            show_bread_crumbs(self, 'Picking order item #')
+            self.show_bread_crumbs('Picking order item #%s' %i)
             if i > 0:
                 # walk to pick the next item
                 _min = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MIN
@@ -149,28 +180,28 @@ class PPP(object):
                 time = random.randrange(_min, _max)
                 yield env.timeout(time)
 
-                # Interrupt the process of we do not have inventory
-                # TODO Review this with someone who understands this better than I do!
-                if app_numbers.get_random_sku_qtd() == 0:
-                    show_bread_crumbs(self, 'OOS')
-                    self.pppOrderTally.status = orderStatus.OrderStatus.Out_Of_Stock.name
-                    yield self.env.process(self.order_fulfillment_interrupted())
-
-            # Assume we have the inventory! Simulate the pick time
-            _min = params.TIME_TO_PICK_ITEM_MIN
-            _max = params.TIME_TO_PICK_ITEM_MAX
-            time = random.randrange(_min, _max)
-            yield env.timeout(time)
+            # Interrupt the process of we do not have inventory
+            # TODO Review this with someone who understands this better than I do!
+            if app_numbers.get_random_sku_qtd() == 0:
+                self.show_bread_crumbs(orderStatus.OrderStatus.Out_Of_Stock.name)
+                self.pppOrderTally.status = orderStatus.OrderStatus.Out_Of_Stock.name
+                simulation_status = False
+            else:
+                _min = params.TIME_TO_PICK_ITEM_MIN
+                _max = params.TIME_TO_PICK_ITEM_MAX
+                time = random.randrange(_min, _max)
+                yield env.timeout(time)
+            if not simulation_status:
+                break
 
         # accumulate inventory station time
-        show_bread_crumbs(self, 'picked the order items')
+        self.show_bread_crumbs('leaving pick station')
         station_time = env.now - station_start
         self.pppOrderTally.pickTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
 
-        # go pack, label, and set the order
-        yield self.env.process(self.packing_station())
+        return simulation_status
 
     def packing_station(self):
         """
@@ -192,38 +223,39 @@ class PPP(object):
             distribution, based on the average time to pack an order;
         """
         # start counting packing station time
+        simulation_status = True
         station_start = env.now
 
-        show_bread_crumbs(self, 'starts walking to the packing station')
+        self.show_bread_crumbs('starts walking to the packing station')
         _min = params.TIME_TO_WALK_TO_PACKING_STATION_MIN
         _max = params.TIME_TO_WALK_TO_PACKING_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        show_bread_crumbs(self, 'arrives the packing station')
+        self.show_bread_crumbs('arrives the packing station')
 
         # pack the order
         with self.packingLocationResource.request() as req:
             yield req
 
             if app_numbers.get_random_packing_resources_qtd() == 0:
-                show_bread_crumbs(self, 'OUT of PACKING RESOURCES')
+                self.show_bread_crumbs(orderStatus.OrderStatus.Out_Of_Packing_Resources.name)
                 self.pppOrderTally.status = orderStatus.OrderStatus.Out_Of_Packing_Resources.name
-                yield self.env.process(self.order_fulfillment_interrupted())
-
-            _min = params.TIME_TO_PACK_ORDER_MIN
-            _max = params.TIME_TO_PACK_ORDER_MAX
-            time = random.randrange(_min, _max)
-            yield env.timeout(time)
-            show_bread_crumbs(self, 'packed the order items')
+                simulation_status = False
+            else:
+                _min = params.TIME_TO_PACK_ORDER_MIN
+                _max = params.TIME_TO_PACK_ORDER_MAX
+                time = random.randrange(_min, _max)
+                yield env.timeout(time)
+                self.show_bread_crumbs('packed the order items')
 
         # accumulate  packing station time
+        self.show_bread_crumbs('leaving pack station')
         station_time = env.now - station_start
         self.pppOrderTally.packTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
 
-        # go pack, label, and set the order
-        yield self.env.process(self.labeling_station())
+        return simulation_status
 
     def labeling_station(self):
         """
@@ -245,37 +277,38 @@ class PPP(object):
             average time to label an order;
         """
         # start counting labeling station time
+        simulation_status = True
         station_start = env.now
 
-        show_bread_crumbs(self, 'starts walking to the labeling station')
+        self.show_bread_crumbs('starts walking to the labeling station')
         _min = params.TIME_TO_WALK_TO_LABELING_STATION_MIN
         _max = params.TIME_TO_WALK_TO_LABELING_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        show_bread_crumbs(self, ' arrives the labeling station')
+        self.show_bread_crumbs('arrived at the labeling station')
 
         # label the order
         with self.labelPrintersResource.request() as req:
             yield req
             if app_numbers.get_random_labeling_resources_qtd() == 0:
-                show_bread_crumbs(self, 'Out of Labeling Resources')
+                self.show_bread_crumbs(orderStatus.OrderStatus.Out_Of_Labeling_Resources.name)
                 self.pppOrderTally.status = orderStatus.OrderStatus.Out_Of_Labeling_Resources.name
-                yield self.env.process(self.order_fulfillment_interrupted())
-
-            _min = params.TIME_TO_LABEL_ORDER_MIN
-            _max = params.TIME_TO_LABEL_ORDER_MAX
-            time = random.randrange(_min, _max)
-            yield env.timeout(time)
-            show_bread_crumbs(self, 'labeled the order items')
+                simulation_status = False
+            else:
+                _min = params.TIME_TO_LABEL_ORDER_MIN
+                _max = params.TIME_TO_LABEL_ORDER_MAX
+                time = random.randrange(_min, _max)
+                yield env.timeout(time)
+                self.show_bread_crumbs('labeled the order items')
 
         # accumulate  labeling station time
+        self.show_bread_crumbs('leaving labeling station')
         station_time = env.now - station_start
         self.pppOrderTally.labelTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
 
-        # go pack, label, and set the order
-        yield self.env.process(self.courier_station())
+        return simulation_status
 
     def courier_station(self):
         """
@@ -290,14 +323,15 @@ class PPP(object):
             uniform distribution, based on the average time to place an order;
         """
         # start counting courier station time
+        simulation_status = True
         station_start = env.now
 
-        show_bread_crumbs(self, 'starts walking to the courier station')
+        self.show_bread_crumbs('starts walking to the courier station')
         _min = params.TIME_TO_WALK_TO_COURIER_STATION_MIN
         _max = params.TIME_TO_WALK_TO_COURIER_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        show_bread_crumbs(self, 'arrives the courier station')
+        self.show_bread_crumbs('arrives the courier station')
 
         # label the order
         #  TODO replace this with the full simulation logic
@@ -305,7 +339,7 @@ class PPP(object):
         _max = params.TIME_TO_PLACE_ORDER_AT_COURIER_STATION_MAX
         time = random.randrange(_min, _max)
         yield env.timeout(time)
-        show_bread_crumbs(self, 'placed the order at the courier station')
+        self.show_bread_crumbs('placed the order at the courier station')
 
         # accumulate  courier station time
         station_time = env.now - station_start
@@ -314,63 +348,30 @@ class PPP(object):
         self.pppShiftTally.workTime += station_time
         self.pppShiftTally.orders += 1
 
-        # Done with this order, go handle the next order
+        return simulation_status
 
-        # go pack, label, and set the order
-        self.pppOrderTally.status = orderStatus.OrderStatus.Fulfilled.name
-        yield self.env.process(self.order_stats())
+    def show_bread_crumbs(self, detail):
+        print('%s %s %s at %s' % (self.pppShiftTally.pppId, self.pppOrderTally.orderId, detail, self.env.now))
 
-    def order_stats(self):
-        # fulfilled the order
-        show_bread_crumbs(self, 'fulfilled order')
-        print_oder_stats(self)
-
-        # Done with this order, go handle the next order
-        # must add it to make it a generator
-        yield env.timeout(0)
-
-    def order_fulfillment_interrupted(self):
-        # order interrupted
-        show_bread_crumbs(self, 'order fulfillment interrupted')
-        print_oder_stats(self)
-
-        # Done with this order, go handle the next order
-        # must add it to make it a generator
-        yield env.timeout(0)
-
-
-def show_bread_crumbs(self, detail):
-    print('%s %s %s at %s' % (self.pppShiftTally.pppId, self.pppOrderTally.orderId, detail, self.env.now))
-
-
-def print_oder_stats(self):
-    print('%s, %s, %s, %s, %s, %s, %s, %s, %s %s %a\n' % (self.pppShiftTally.pppId,
-                                                          self.pppOrderTally.orderId,
-                                                          self.pppOrderTally.items,
-                                                          self.pppOrderTally.orderTime,
-                                                          self.pppOrderTally.pickTime,
-                                                          self.pppOrderTally.packTime,
-                                                          self.pppOrderTally.labelTime,
-                                                          self.pppOrderTally.courierTime,
-                                                          self.pppOrderTally.workTime,
-                                                          self.pppShiftTally.workTime,
-                                                          self.pppOrderTally.status))
-    # lst_str = str(self.pppShiftTally.pppId)
-    # lst_str += str(self.pppOrderTally.orderId) + ", "
-    # lst_str += str(self.pppOrderTally.items) + ", "
-    # lst_str += str(self.pppOrderTally.orderTime) + ", "
-    # lst_str += str(self.pppOrderTally.pickTime) + ", "
-    # lst_str += str(self.pppOrderTally.packTime) + ", "
-    # lst_str += str(self.pppOrderTally.labelTime) + ", "
-    # lst_str += str(self.pppOrderTally.courierTime) + ", "
-    # lst_str += str(self.pppOrderTally.workTime) + ", "
-    # lst_str += str(self.pppOrderTally.status)
-    list_array = [self.pppShiftTally.pppId, self.pppOrderTally.orderId, self.pppOrderTally.items,
-                  self.pppOrderTally.orderTime, self.pppOrderTally.pickTime, self.pppOrderTally.packTime,
-                  self.pppOrderTally.labelTime, self.pppOrderTally.courierTime, self.pppOrderTally.workTime,
-                  self.pppOrderTally.status]
-
-    self.csvFile.write(list_array)
+    def print_order_stats(self):
+        # print
+        print('%s, %s, %s, %s, %s, %s, %s, %s, %s %s %a\n' % (self.pppShiftTally.pppId,
+                                                              self.pppOrderTally.orderId,
+                                                              self.pppOrderTally.items,
+                                                              self.pppOrderTally.orderTime,
+                                                              self.pppOrderTally.pickTime,
+                                                              self.pppOrderTally.packTime,
+                                                              self.pppOrderTally.labelTime,
+                                                              self.pppOrderTally.courierTime,
+                                                              self.pppOrderTally.workTime,
+                                                              self.pppShiftTally.workTime,
+                                                              self.pppOrderTally.status))
+        # log
+        list_array = [self.pppShiftTally.pppId, self.pppOrderTally.orderId, self.pppOrderTally.items,
+                      self.pppOrderTally.orderTime, self.pppOrderTally.pickTime, self.pppOrderTally.packTime,
+                      self.pppOrderTally.labelTime, self.pppOrderTally.courierTime, self.pppOrderTally.workTime,
+                      self.pppOrderTally.status]
+        self.orderTallyLog.write(list_array)
 
 
 """
@@ -394,21 +395,21 @@ env = simpy.Environment()
 packingLocationResource = simpy.Resource(env, capacity=params.PACKING_LOCATIONS)  # one for the whole simulation
 labelPrintersResource = simpy.Resource(env, capacity=params.LABEL_PRINTERS)  # one for the whole simulation
 
-if os.path.isfile(params.CSV_FILENAME):
-    os.remove(params.CSV_FILENAME)
-csvFile = csv.CSV(params.CSV_FILENAME)
-csvFile.open()
+if os.path.isfile(params.ORDER_TALLY_LOG):
+    os.remove(params.ORDER_TALLY_LOG)
+orderTallyLog = csv.CSV(params.ORDER_TALLY_LOG)
+orderTallyLog.open()
 header = ['pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'labelTime', 'courierTime',
           'totalOrderTime', 'status']
-csvFile.write(header)
+orderTallyLog.write(header)
 
 ppp = PPP(env)
 ppp.pppShiftTally = ppp_shift_tally.PppShiftTally()  # set PPP's tally
-ppp.csvFile = csvFile  # set simulation CSV file
+ppp.orderTallyLog = orderTallyLog  # set simulation CSV file
 ppp.packingLocationResource = packingLocationResource  # set simulation Packing Location Resource
 ppp.labelPrintersResource = labelPrintersResource  # set simulation Label Printer Resource
 
 # Run the simulation
 ppp_process = env.process(ppp.checkin(env))
 env.run(until=ppp_process)
-csvFile.close()
+orderTallyLog.close()
