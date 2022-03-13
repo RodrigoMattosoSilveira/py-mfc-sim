@@ -51,6 +51,7 @@ class CSV(object):
         # create the csv writer
         self.writer = csv.writer(file)
 
+    #  see https://gist.github.com/rahulrajaram/5934d2b786ed2c29dc418fafaa2830ad for details on locking
     def write(self, row):
         while self.orderTallyLogLock.locked():
             continue
