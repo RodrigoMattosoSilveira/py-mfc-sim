@@ -451,5 +451,6 @@ ppp.labelPrintersResource = labelPrintersResource  # set simulation Label Printe
 
 # Run the simulation
 ppp_process = simulation_environment.process(ppp.checkin(simulation_environment))
-simulation_environment.run(until=ppp_process)
+# Since the PPP process ends after the shift duration time we do not need the until clause!
+simulation_environment.run()
 orderTallyLog.close()
