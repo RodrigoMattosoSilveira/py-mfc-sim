@@ -75,6 +75,13 @@ class PPP(object):
 
     def checkin(self, _env):
         # order_simulation_status = True
+        workflow = [
+            self.order_station,
+            self.inventory_station,
+            self.packing_station,
+            self.labeling_station,
+            self.courier_station
+        ]
         while self.env.now <= params.SHIFT_WORK_DURATION:
             order_simulation_status = True
 
@@ -82,29 +89,10 @@ class PPP(object):
             self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
             self.show_bread_crumbs('Order fulfillment started')
 
-            # get the order
-            if order_simulation_status:
-                order_simulation_status = yield self.env.process(self.order_station())
-
-            # pick the order
-            if order_simulation_status:
-                order_simulation_status = yield self.env.process(self.inventory_station())
-
-            # pack the order
-            if order_simulation_status:
-                order_simulation_status = yield self.env.process(self.packing_station())
-
-            # label the order
-            if order_simulation_status:
-                order_simulation_status = yield self.env.process(self.labeling_station())
-
-            # place the order at the courier status
-            if order_simulation_status:
-                order_simulation_status = yield self.env.process(self.courier_station())
-
-            # place the order at the courier status
-            if order_simulation_status:
-                self.pppOrderTally.status = orderStatus.OrderStatus.Fulfilled.name
+            #  Refactored based on Eric's "code review"
+            for step in workflow:
+                if not (yield self.env.process(step())):
+                    break
 
             # log
             self.print_order_stats()
