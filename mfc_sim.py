@@ -436,6 +436,7 @@ packingLocationResource = simpy.Resource(simulation_environment, capacity=params
 # one for the whole simulation
 labelPrintersResource = simpy.Resource(simulation_environment, capacity=params.LABEL_PRINTERS)
 
+# TODO move this to its own orderTallyLog package / class
 if os.path.isfile(params.ORDER_TALLY_LOG):
     os.remove(params.ORDER_TALLY_LOG)
 orderTallyLogLock = threading.Lock()
@@ -445,14 +446,14 @@ header = ['pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'lab
           'totalOrderTime', 'status']
 orderTallyLog.write(header)
 
-ppp = PPP(simulation_environment)
-ppp.pppShiftTally = ppp_shift_tally.PppShiftTally()  # set PPP's tally
-ppp.orderTallyLog = orderTallyLog  # set simulation CSV file
-ppp.packingLocationResource = packingLocationResource  # set simulation Packing Location Resource
-ppp.labelPrintersResource = labelPrintersResource  # set simulation Label Printer Resource
+for i in range(params.NUMBER_OF_PPP):
+    ppp = PPP(simulation_environment)
+    ppp.pppShiftTally = ppp_shift_tally.PppShiftTally()  # set PPP's tally
+    ppp.orderTallyLog = orderTallyLog  # set simulation CSV file
+    ppp.packingLocationResource = packingLocationResource  # set simulation Packing Location Resource
+    ppp.labelPrintersResource = labelPrintersResource  # set simulation Label Printer Resource
+    ppp_process = simulation_environment.process(ppp.checkin(simulation_environment))
 
 # Run the simulation
-ppp_process = simulation_environment.process(ppp.checkin(simulation_environment))
-# Since the PPP process ends after the shift duration time we do not need the until clause!
 simulation_environment.run()
 orderTallyLog.close()
