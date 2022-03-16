@@ -207,8 +207,8 @@ class PPP(object):
             # Interrupt the process of we do not have inventory
             # TODO Review this with someone who understands this better than I do!
             if app_numbers.get_random_sku_qtd() == 0:
-                self.show_bread_crumbs(orderStatus.OrderStatus.Out_Of_Stock.name)
-                self.pppOrderTally.status = orderStatus.OrderStatus.Out_Of_Stock.name
+                self.show_bread_crumbs(orderStatus.OrderStatus.OOS.name)
+                self.pppOrderTally.status = orderStatus.OrderStatus.OOS.name
                 simulation_status = False
             else:
                 _min = params.TIME_TO_PICK_ITEM_MIN
@@ -262,8 +262,8 @@ class PPP(object):
             yield req
 
             if app_numbers.get_random_packing_resources_qtd() == 0:
-                self.show_bread_crumbs(orderStatus.OrderStatus.Out_Of_Packing_Resources.name)
-                self.pppOrderTally.status = orderStatus.OrderStatus.Out_Of_Packing_Resources.name
+                self.show_bread_crumbs(orderStatus.OrderStatus.OPPB.name)
+                self.pppOrderTally.status = orderStatus.OrderStatus.OPPB.name
                 simulation_status = False
             else:
                 _min = params.TIME_TO_PACK_ORDER_MIN
@@ -315,14 +315,15 @@ class PPP(object):
         with self.labelPrintersResource.request() as req:
             yield req
             if app_numbers.get_random_labeling_resources_qtd() == 0:
-                self.show_bread_crumbs(orderStatus.OrderStatus.Out_Of_Labeling_Resources.name)
-                self.pppOrderTally.status = orderStatus.OrderStatus.Out_Of_Labeling_Resources.name
+                self.show_bread_crumbs(orderStatus.OrderStatus.OOL.name)
+                self.pppOrderTally.status = orderStatus.OrderStatus.OOL.name
                 simulation_status = False
             else:
                 _min = params.TIME_TO_LABEL_ORDER_MIN
                 _max = params.TIME_TO_LABEL_ORDER_MAX
                 time = random.randrange(_min, _max)
                 yield self.env.timeout(time)
+                self.pppOrderTally.status = orderStatus.OrderStatus.Fulfilled.name
                 self.show_bread_crumbs('labeled the order items')
 
         # accumulate  labeling station time
