@@ -167,12 +167,12 @@ class PPP(object):
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the order station at')
+        self.show_bread_crumbs('starts walking to the order station')
         _min = params.TIME_TO_WALK_TO_ORDER_STATION_MIN
         _max = params.TIME_TO_WALK_TO_ORDER_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('arrives the order station at')
+        self.show_bread_crumbs('arrives the order station')
 
         # PPP requests the tablet; once it is available, once the tablet is available the PPP records the just completed
         # order's stats, if there was one, and requests his new order;
@@ -227,7 +227,7 @@ class PPP(object):
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the pick station at')
+        self.show_bread_crumbs('starts walking to the pick station')
         _min = params.TIME_TO_WALK_TO_INVENTORY_STATION_MIN
         _max = params.TIME_TO_WALK_TO_INVENTORY_STATION_MAX
         time = random.randrange(_min, _max)
@@ -417,11 +417,12 @@ class PPP(object):
         return simulation_status
 
     def show_bread_crumbs(self, detail):
-        msg = '%s %s %s at %s' % (str(self.env.now).zfill(5),
-                                  self.pppShiftTally.pppId,
-                                  self.pppOrderTally.orderId, detail)
+        msg = '%s,%s,%s,%s' % (
+            str(self.env.now).zfill(5),
+            self.pppShiftTally.pppId,
+            self.pppOrderTally.orderId, detail)
         print(msg)
-        list_array = [msg]
+        list_array = [str(self.env.now).zfill(5), self.pppShiftTally.pppId, self.pppOrderTally.orderId, detail]
         self.pppActivityLog.write(list_array)
 
     def print_order_stats(self):
@@ -487,14 +488,14 @@ if os.path.isfile(params.PPP_ACTIVITY_LOG):
 orderTallyLogLock = threading.Lock()
 orderTallyLog = csv.CSV(params.ORDER_TALLY_LOG, orderTallyLogLock)
 orderTallyLog.open()
-header = ['pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'labelTime', 'courierTime', 'breakTime',
+header = ['time', 'pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'labelTime', 'courierTime', 'breakTime',
           'totalOrderTime', 'status']
 orderTallyLog.write(header)
 
 pppActivityLogLock = threading.Lock()
 pppActivityLog = csv.CSV(params.PPP_ACTIVITY_LOG, pppActivityLogLock)
 pppActivityLog.open()
-header = ['pppId', 'orderId', 'activity']
+header = ['time','pppId', 'orderId', 'activity']
 pppActivityLog.write(header)
 
 for i in range(params.NUMBER_OF_PPP):
