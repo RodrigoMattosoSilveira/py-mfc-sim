@@ -12,6 +12,7 @@ class OrderTally(object):
         self.__pppId = ppp_id
         self.__orderId = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         self.__items = get_random_order_items()
+        self.__kitItems = 0
         self.__orderTime = 0
         self.__pickTime = 0
         self.__packTime = 0
@@ -45,6 +46,14 @@ class OrderTally(object):
     @items.setter
     def items(self, value):
         self.__items = value
+
+    @property
+    def kitItems(self):
+        return self.__kitItems
+
+    @kitItems.setter
+    def kitItems(self, value):
+        self.__kitItems = value
 
     @property
     def orderTime(self):
