@@ -417,30 +417,40 @@ class PPP(object):
         return simulation_status
 
     def show_bread_crumbs(self, detail):
-        msg = '%s %s %s at %s' % (self.pppShiftTally.pppId, self.pppOrderTally.orderId, detail, self.env.now)
+        msg = '%s %s %s at %s' % (str(self.env.now).zfill(5),
+                                  self.pppShiftTally.pppId,
+                                  self.pppOrderTally.orderId, detail)
         print(msg)
         list_array = [msg]
         self.pppActivityLog.write(list_array)
 
     def print_order_stats(self):
         # print
-        print('%s, %s, %s, %s, %s, %s, %s, %s, %s %s %s %a' % (
+        print('%s %s %s %s %s %s %s %s  %s %s %s %s %a' % (
+            str(self.env.now).zfill(5),
             self.pppShiftTally.pppId,
             self.pppOrderTally.orderId,
             self.pppOrderTally.items,
-            self.pppOrderTally.orderTime,
-            self.pppOrderTally.pickTime,
-            self.pppOrderTally.packTime,
-            self.pppOrderTally.labelTime,
-            self.pppOrderTally.courierTime,
-            self.pppOrderTally.breakTime,
-            self.pppOrderTally.workTime,
-            self.pppShiftTally.workTime,
+            str(self.pppOrderTally.orderTime).zfill(3),
+            str(self.pppOrderTally.pickTime).zfill(3),
+            str(self.pppOrderTally.packTime).zfill(3),
+            str(self.pppOrderTally.labelTime).zfill(3),
+            str(self.pppOrderTally.courierTime).zfill(3),
+            str(self.pppOrderTally.breakTime).zfill(4),
+            str(self.pppOrderTally.workTime).zfill(4),
+            str(self.pppShiftTally.workTime).zfill(5),
             self.pppOrderTally.status))
         # log
-        list_array = [self.pppShiftTally.pppId, self.pppOrderTally.orderId, self.pppOrderTally.items,
-                      self.pppOrderTally.orderTime, self.pppOrderTally.pickTime, self.pppOrderTally.packTime,
-                      self.pppOrderTally.labelTime, self.pppOrderTally.courierTime,  self.pppOrderTally.breakTime,
+        list_array = [str(self.env.now).zfill(5),
+                      self.pppShiftTally.pppId,
+                      self.pppOrderTally.orderId,
+                      self.pppOrderTally.items,
+                      self.pppOrderTally.orderTime,
+                      self.pppOrderTally.pickTime,
+                      self.pppOrderTally.packTime,
+                      self.pppOrderTally.labelTime,
+                      self.pppOrderTally.courierTime,
+                      self.pppOrderTally.breakTime,
                       self.pppOrderTally.workTime,
                       self.pppOrderTally.status]
         self.orderTallyLog.write(list_array)
