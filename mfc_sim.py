@@ -238,12 +238,12 @@ class PPP(object):
         #  TODO replace this with the full simulation logic
         for k in range(1, self.pppOrderTally.items + 1):
             self.show_bread_crumbs('Picking order item #%s' % k)
-            if k > 0:
-                # walk to pick the next item
-                _min = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MIN
-                _max = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MAX
-                time = random.randrange(_min, _max)
-                yield self.env.timeout(time)
+
+            # walk to pick the next item
+            _min = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MIN
+            _max = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MAX
+            time = random.randrange(_min, _max)
+            yield self.env.timeout(time)
 
             # Interrupt the process of we do not have inventory
             # TODO Review this with someone who understands this better than I do!
