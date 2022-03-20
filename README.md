@@ -4,6 +4,7 @@ An MFC simulation using SimPy
 # Business Domain
 ## Glossary
 * **carrier**: __**i**__) noun, a `DSP` provider that has its own fleet, and infrastructure to manage it;
+* **carry bundle**: __**i**__) noun, number of order items to carry when building / take down an order kit;
 * **courier**: __**i**__) noun, a `DSP` provider that has its own vehicle and depends on a platform to service `orders`;
 * **delivery area**: __**i**__) noun, a warehouse location where a `PPP` places packed orders for delivery;
 * **DSP**: __**i**__) acronym 1. Delivery Service provider, can be `carrier` or `courier`;
@@ -15,14 +16,16 @@ An MFC simulation using SimPy
 * **order area**: __**i**__) noun, a warehouse location where a `PPP` selects their next order fulfilling mission;
 * **orders bags**: __**i**__) noun, containers used to pack small `rush` / `same day` orders;  `orders bas` are  plentiful and easy to find around the warehouse;
 * **orders boxes**: __**i**__) noun, containers used to pack larger `next day` / `nationwide` orders; `orders boxes` are not plentiful and hard to find around the warehouse;
-* **order item**: __**i**__) noun, same as `order line item`;
+* **order item**: __**i**__) noun, same as `order line item`; __**ii**__) plural, count of an order's invidual produts;
 * **order kit**: __**i**__) noun, a collection of multiple inventory items required to fulfill an order;
+* **oder kit location**: __**i**__) noun,  - a pack area location to assemble a multi item order
 * **order line item**: __**i**__) noun, a brand's product purchased by its customer, and included in an order for Ohi to deliver; 
 * **order tablet**: __**i**__) noun, a device the `PPP` uses to get the next order fulfillment, and to update their order fulfillment tasks;
 * **pack area**: __**i**__) noun, a warehouse location where a `PPP` packs the inventory item(s) required to fulfill an order;
 * **pack location**: __**i**__) noun, a location within the `pack area` where a `PPP` packs a specific `order`;
 * **pack resource**: __**i**__) noun, an `order bag` or an `order box`;
-* **parcel**: __**i**__) noun, container with order items, with an `order bag` or an `order box`;
+* **pallet**: __**i**__) noun, TBD;
+* **parcel**: __**i**__) noun, container, an `order bag` or an `order box`, with order items;
 * **pick area**: __**i**__) noun, a warehouse location where a `PPP` picks the  inventory item(s) required to fulfill an order;
 * **pick slot**: __**i**__) noun, a pick are location to pick an inventory item to fulfill an order line item
 * **PnP**: __**i**__) acronym, Pick and Pack process, a series of steps to fulfill `orders`;
@@ -34,48 +37,77 @@ An MFC simulation using SimPy
 A `PPP` mission is to fulfill `orders`. The `PPP` executes its mission through repeated executions of the `PnP` cycle; they work `SHIFT_WORK_DURATION` hours, performs `PnP tasks`, takes periodic `shift breaks` and `hourly breaks` in between ` their PnP` work.
 
 The `PnP` cycle consists of:
-* order area
-  * walks to the order area
-  * requests order tablet
-  * records previous order results
-  * takes a shift or hour break
-  * requests order tablet
-  * requests next order
-  * waits for the next order
+
+### Sunny day scenarios
+* check in 
+  * arrives at the check in area 
+  * If not working, get a PPP tally
+  * If working, and has an outstanding order tally
+    * requests order tablet, and wait
+    * record previous order results
+* rest
+  * arrives at rest area
+  * rest for the amount of time, 0 if not
+* get next order
+  * arrives at the order area
+  * requests order tablet, waits for tablet
+  * requests next order, waits for the next order
   * gets, reads, and memorizes the order
-* pick area
+* pick an order
   * walks to pick area
-  * Repeat until picking all order items
-  * walks to product(s) pick slot
-  * picks product(s)
-    * Abandon current PnP cycle in case they cannot find product(s)
-      * restore product(s) to pick area
-      * returns to order area
-  * walks to the stage area
-  * wait for stage area
-  * adds product(s) to kit
-* pack area
-  * retrieves pack resources
-    * Abandon current PnP cycle in case they cannot retrieve pack resources
-      * restore product(s) to pick area
-      * returns to order area
+  * pick order kit
+    * Repeat until picking all order items
+      * for each order carry bundle
+         * for each product in carry bundle
+           * walk to product pick slot location
+           * pick product
+           * Abort current PnP cycle in case product not available, execute the put-away order kit below
+         * carry bundle to pack area
+         * if it does not have one, request order kit location and wait until one is available
+         * walk to order kit location
+         * add bundle to order kit
+         * return to pick area, for any additional order items; stay in pack area otherwise
+* pack an order
+  * build order parcel(s)
+  * retrieves pack resources for parcel(s)
+    * Abort current PnP cycle in case they cannot retrieve pack resources, execute the put-away order parcel(s) below
   * pack the parcels
-* label area
+* label an order
   * walks to the label area
   * retrieves the label material
-    * Abandon current PnP cycle in case they cannot retrieve the label material
-      * restore product(s) to pick area
-      * returns to order area
+    * Abort current PnP cycle in case they cannot retrieve the label material, execute the put-away order parcel(s) procedure
   * wait for label printer
-  * labels the parcel
-* delivery area
+  * labels the parcel(s)
+* set an order for delivery
   * walks to the delivery area
   * retrieves delivery fridge space, for some parcels
-  * Abandon current PnP cycle in case they cannot retrieve delivery fridge space
-    * restore product(s) to pick area
-    * returns to order area
+    * Abort current PnP cycle in case they cannot retrieve the fridge space, execute the put-away order parcel(s) procedure
   * places the parcel(s) in delivery area
-  * walks to the order area
+  * return to check in area
+
+### Exception handling
+* put-away order kit
+  * for each product in hand,if any
+    * walt to pick slot
+    * put product away
+  * walk to order kit location
+    * for each order carry bundle
+      * pick a carry bundle
+      * carry bundle to pick area
+      * For each product in carry bundle
+        * walk to product pick slot location
+        * put away product
+    * return to check in area, from pick area after putting away all order items
+* put-away order parcel(s)
+  * for each order parcel(s)
+    * for each order carry bundle
+      * pick a carry bundle
+      * carry bundle to pick area
+      * For each product in carry bundle
+        * walk to product pick slot location
+        * put away product
+    * return to check in area, from pick area after putting away all order items
+
 
 # Simulation
 We will simulate multiple `PPP` executing their missions concurrently; they will work `SHIFT_WORK_DURATION` hours, performing their `PnP tasks`, takes periodic `shift breaks` and `hourly breaks` in between ` their PnP` work.
