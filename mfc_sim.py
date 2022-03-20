@@ -193,7 +193,7 @@ class PPP(object):
                 self.show_bread_crumbs(' done recording the order stats')
             # wait for an order
             self.show_bread_crumbs('start waiting for an order')
-            time = rng.get_random_normal(params.INTER_ARRIVAL_TIME_MEAN, params.INTER_ARRIVAL_TIME_SIGMA)
+            time = rng.get_random_normal(params.ORDER_INTER_ARRIVAL_TIME_MEAN, params.ORDER_INTER_ARRIVAL_TIME_SIGMA)
             yield self.env.timeout(time)
             self.show_bread_crumbs('done waiting for an order')
 
@@ -228,8 +228,8 @@ class PPP(object):
         station_start = self.env.now
 
         self.show_bread_crumbs('starts walking to the pick station')
-        _min = params.TIME_TO_WALK_TO_INVENTORY_STATION_MIN
-        _max = params.TIME_TO_WALK_TO_INVENTORY_STATION_MAX
+        _min = params.TIME_TO_WALK_TO_PICK_STATION_MIN
+        _max = params.TIME_TO_WALK_TO_PICK_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
         self.show_bread_crumbs('arrives the pick station')
@@ -292,8 +292,8 @@ class PPP(object):
         station_start = self.env.now
 
         self.show_bread_crumbs('starts walking to the packing station')
-        _min = params.TIME_TO_WALK_TO_PACKING_STATION_MIN
-        _max = params.TIME_TO_WALK_TO_PACKING_STATION_MAX
+        _min = params.TIME_TO_WALK_TO_PACK_STATION_MIN
+        _max = params.TIME_TO_WALK_TO_PACK_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
         self.show_bread_crumbs('arrives the packing station')
@@ -346,8 +346,8 @@ class PPP(object):
         station_start = self.env.now
 
         self.show_bread_crumbs('starts walking to the labeling station')
-        _min = params.TIME_TO_WALK_TO_LABELING_STATION_MIN
-        _max = params.TIME_TO_WALK_TO_LABELING_STATION_MAX
+        _min = params.TIME_TO_WALK_TO_LABEL_STATION_MIN
+        _max = params.TIME_TO_WALK_TO_LABEL_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
         self.show_bread_crumbs('arrived at the labeling station')
