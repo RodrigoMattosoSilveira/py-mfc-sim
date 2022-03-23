@@ -96,7 +96,7 @@ class PPP(object):
             self.order_station,
             self.pick_station,
             self.packing_station,
-            self.labeling_station,
+            self.label_area,
             self.deliver_area
         ]
         while self.env.now <= params.SHIFT_WORK_DURATION:
@@ -265,7 +265,7 @@ class PPP(object):
 
         return simulation_status
 
-    def labeling_station(self):
+    def label_area(self):
         # start counting labeling station time
         simulation_status = True
         station_start = self.env.now
