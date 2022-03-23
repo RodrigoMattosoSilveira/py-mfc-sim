@@ -94,7 +94,7 @@ class PPP(object):
     def checkin(self, _env):
         workflow = [
             self.order_station,
-            self.pick_station,
+            self.pick_area,
             self.pack_area,
             self.label_area,
             self.deliver_area
@@ -183,7 +183,7 @@ class PPP(object):
 
         return simulation_status
 
-    def pick_station(self):
+    def pick_area(self):
         # start counting pick station time
         simulation_status = True
         station_start = self.env.now
