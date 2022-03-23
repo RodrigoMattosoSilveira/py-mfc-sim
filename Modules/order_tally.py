@@ -13,6 +13,10 @@ class OrderTally(object):
         self.__orderId = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         self.__items = get_random_order_items()
         self.__kitItems = 0
+        self.__checkInTime = 0
+        self.__cleaningReceivingTime = 0
+        self.__parcelLevelScanningTime = 0
+        self.__cycleCountTime = 0
         self.__orderTime = 0
         self.__pickTime = 0
         self.__packTime = 0
@@ -54,6 +58,38 @@ class OrderTally(object):
     @kitItems.setter
     def kitItems(self, value):
         self.__kitItems = value
+
+    @property
+    def checkInTime(self):
+        return self.checkInTime
+
+    @checkInTime.setter
+    def checkInTime(self, value):
+        self.__checkInTime = value
+
+    @property
+    def cleaningReceivingTime(self):
+        return self.__cleaningReceivingTime
+
+    @cleaningReceivingTime.setter
+    def cleaningReceivingTime(self, value):
+        self.__cleaningReceivingTime = value
+
+    @property
+    def cycleCountTime(self):
+        return self.__cycleCountTime
+
+    @cycleCountTime.setter
+    def cycleCountTime(self, value):
+        self.__cycleCountTime = value
+
+    @property
+    def parcelLevelScanningTime(self):
+        return self.__parcelLevelScanningTime
+
+    @parcelLevelScanningTime.setter
+    def parcelLevelScanningTime(self, value):
+        self.__parcelLevelScanningTime = value
 
     @property
     def orderTime(self):
