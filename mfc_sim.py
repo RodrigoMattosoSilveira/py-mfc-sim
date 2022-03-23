@@ -270,12 +270,12 @@ class PPP(object):
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the label area ')
+        self.show_bread_crumbs('starts walking to the label area')
         _min = params.TIME_TO_WALK_TO_LABEL_STATION_MIN
         _max = params.TIME_TO_WALK_TO_LABEL_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('arrived at the label area ')
+        self.show_bread_crumbs('arrived at the label area')
 
         # label the order
         with self.labelPrintersResource.request() as req:
@@ -292,8 +292,8 @@ class PPP(object):
                 self.pppOrderTally.status = orderStatus.OrderStatus.Fulfilled.name
                 self.show_bread_crumbs('labeled the order items')
 
-        # accumulate  labeling station time
-        self.show_bread_crumbs('leaving labeling station')
+        # accumulate  label area time
+        self.show_bread_crumbs('leaving label area')
         station_time = self.env.now - station_start
         self.pppOrderTally.labelTime = station_time
         self.pppOrderTally.workTime += station_time
