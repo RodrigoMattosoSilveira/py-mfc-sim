@@ -140,29 +140,6 @@ class PPP(object):
                 self.print_order_stats()
 
     def order_station(self):
-        """
-        - Travel to, aPPP travels to the order station - We will model travel to the order station by selecting from an
-        uniform distribution, based on the average time to travel to the order station;
-
-         A PPP requests the tablet to record their previous order, if there was one, and request his new order to
-         fulfill; once the tablet is available the PPP records the just completed order's stats, if there was one, and
-         requests his new order;
-
-        An order station has an inter arrival time based on distribution, with a mean of 10 and a sigma of 2.6.
-
-        A ppp has to request an order, wait for its inter arrival time and then proceed with fulfilling the order
-
-        - Travel to - We will model travel to the order station by selecting from an uniform distribution, based on the
-        average time to travel to the order station;
-
-        - Shift End - We will end the iteration simulation after the PPP works a configurable number shift hours;
-        - Shift Break - We will insert a 1 hour shift break after a PPP works 4 hours; in this case we will not have the
-        hourly break;
-        - Hourly Break - We will insert a 5 minutes hourly break after a PPP works 55 minutes;
-        - Order Inter Arrival Time - This varies based on the time of the day, day of the month, and season. We will
-        start with a simple model, by selecting from uniform distribution, based on on the average order inter arrival
-        time;
-        """
         # start counting order station time
         simulation_status = True
         station_start = self.env.now
@@ -207,22 +184,6 @@ class PPP(object):
         return simulation_status
 
     def pick_station(self):
-        """
-        - Travel to - We will model travel to the pick station by selecting from an uniform distribution, based on
-        the average time to travel to the pick station;
-        - Inventory Pick Location Utilization - Our model will ensure that two PPPs do not attempt to pick at the same
-        inventory pick location simultaneously; we will model inventory location utilization by: i) using a Resource
-        object modeling the 1,500 MFC pick locations, ii) selecting the order line pick location from a from a poisson
-        distribution that favors the first 150 of the MFCs 1,500 pick locations;
-            - When two PPPs , attempt to pick from the same pick location simultaneously, our model will wait until the
-            first PPP finishes picking;
-        - Inventory Availability - We will model SKU availability by selecting a random value from a distribution that
-        yields a very high probability that the SKU is available;
-            - when an SKU is not available, the model will transition the PPP back to the order station, count the time
-            until that point in time, without incrementing the number of fulfilled orders;
-        - Picking Time - We will model the PPP order line item pick time by selecting a random value from an uniform
-        distributions based on the average pick time;
-        """
         # start counting pick station time
         simulation_status = True
         station_start = self.env.now
@@ -269,24 +230,6 @@ class PPP(object):
         return simulation_status
 
     def packing_station(self):
-        """
-            - Travel to - We will model travel to the packing station by selecting from an uniform distribution, based
-            on the average time to travel to the pack station;
-            - Packing Resources Location Availability - Our model will ensure that two PPP do not attempt to retrieve
-            the packing resources for the same SKU simultaneously; we will model packing resource location availability
-            by selecting a random value from an uniform distributions that yields  a very high packing resource location
-            availability probability;
-                - When two PPPs , attempt to retrieve packing resources for the same SKU simultaneously, our model will
-                wait until the first PPP finishes retrieving;
-            - Packing Resources Availability - we will model Packing Resources availability by selecting a random value
-            from a distribution that yields  a very high probability that the packing resources are available;
-                - The model will transition the PPP back to the order station when an order's packing resources are not
-                available, count the time, but not the number of fulfilled orders;
-            - Packing Resources Retrieval Time - We will model it by selecting from an uniform distribution, based on
-            the average time to retrieve package resources;
-            - Packing - We will model the time for the PPPs to pack their orders by selecting from an uniform
-            distribution, based on the average time to pack an order;
-        """
         # start counting packing station time
         simulation_status = True
         station_start = self.env.now
@@ -323,24 +266,6 @@ class PPP(object):
         return simulation_status
 
     def labeling_station(self):
-        """
-            - Travel to - We will model travel to the labeling station by selecting from an uniform distribution, based
-            on the average time to travel to the labeling station;
-            - Print Label Location Availability - Our model will ensure that two PPP do not attempt to print their
-            orders' labels simultaneously; we will model print label location availability by selecting a random value
-            from a distributions that yields a very high print label location availability probability;
-                - When two PPPs , attempt to print labels simultaneously, our model will wait until the first PPP
-                finishes printing;
-            - Print Label  Resources Availability - we will model Print Label Resources availability by selecting a
-            random value from a distribution that yields a very high probability that the print label resources are
-            available;
-                - The model will transition the PPP back to the order station when an order's print labels are not
-                available, count the time, but not the number of fulfilled orders;
-            - Print Label Time - We will model it by selecting from an uniform distribution, based on the average time
-            to print a label;
-            - Labeling - We will model the PPPs labeling time by selecting from an uniform distribution, based on the
-            average time to label an order;
-        """
         # start counting labeling station time
         simulation_status = True
         station_start = self.env.now
@@ -377,17 +302,6 @@ class PPP(object):
         return simulation_status
 
     def courier_station(self):
-        """
-            - Travel to - We will model travel to the courier station by selecting from an uniform distribution, based
-            on the average time to travel to the courier station;
-            - Courier Station Location Availability - Our model will ensure that two PPPs do not attempt to place their
-            orders' at the courier station simultaneously; we will model courier location availability by selecting a
-            random value from a distributions that yields a very high courier location availability probability;
-                - When two PPPs attempt place their orders' at the courier station simultaneously, our model will
-                wait until the first PPP finishes tp place their order;
-            - Placing Order - We will model the PPPs placing their orders' at the courier station by selecting from an
-            uniform distribution, based on the average time to place an order;
-        """
         # start counting courier station time
         simulation_status = True
         station_start = self.env.now
