@@ -18,9 +18,13 @@ An MFC simulation using SimPy
 * **orders boxes**: __**i**__) noun, containers used to pack larger `next day` / `nationwide` orders; `orders boxes` are not plentiful and hard to find around the warehouse;
 * **order item**: __**i**__) noun, same as `order line item`; __**ii**__) plural, count of an order's invidual produts;
 * **order kit**: __**i**__) noun, a collection of multiple inventory items required to fulfill an order;
-* **oder kit location**: __**i**__) noun,  - a pack area location to assemble a multi item order
+* **oder kit location**: __**i**__) noun,  a pack area location to assemble a multi item order
 * **order line item**: __**i**__) noun, a brand's product purchased by its customer, and included in an order for Ohi to deliver; 
 * **order tablet**: __**i**__) noun, a device the `PPP` uses to get the next order fulfillment, and to update their order fulfillment tasks;
+* **outbound box shelf**: __**i**__) noun, a pack area location to assemble a multi item order;
+* **OOL**: __**i**__) acronym, Out of label;
+* **OOP**: __**i**__) acronym, Out of packing resource;
+* **OOS**: __**i**__) acronym, Out of stock;
 * **pack area**: __**i**__) noun, a warehouse location where a `PPP` packs the inventory item(s) required to fulfill an order;
 * **pack location**: __**i**__) noun, a location within the `pack area` where a `PPP` packs a specific `order`;
 * **pack resource**: __**i**__) noun, an `order bag` or an `order box`;
@@ -33,12 +37,15 @@ An MFC simulation using SimPy
 * **SKU** __**i**__) acronym, Stock Keeping Unit, it is a number (usually eight alphanumeric digits) assigned to products to keep track of stock levels internally; the same product, but with a different color, or size, will have its own unique SKU number.
 * **stage area** __**i**__) noun, a warehouse location where a `PPP` uses to build `order kits`; we will use a `pack location` as `stage areas`;
 
-## The Pick and Pack Cycle
+## The PPP workflows
+A `PPP` has the following workflows:
+* 70% PnP;
+* 15% Receiving and Cleaning;
+*  5% Cycle Count;
+*  5% Parcel Level Scanning (TRIPS);
 A `PPP` mission is to fulfill `orders`. The `PPP` executes its mission through repeated executions of the `PnP` cycle; they work `SHIFT_WORK_DURATION` hours, performs `PnP tasks`, takes periodic `shift breaks` and `hourly breaks` in between ` their PnP` work.
 
-The `PnP` cycle consists of:
-
-### Sunny day scenarios
+#### Sunny Day
 * check in 
   * arrives at the check in area 
   * If not working, get a PPP tally
@@ -48,40 +55,48 @@ The `PnP` cycle consists of:
 * rest
   * arrives at rest area
   * rest for the amount of time, 0 if not
+* receive and clean
+  * 15%
+cycle count
+  * 5%
+* parcel level scanning
+  * 5%
 * get next order
   * arrives at the order area
   * requests order tablet, waits for tablet
   * requests next order, waits for the next order
   * gets, reads, and memorizes the order
+  * decides how many containers for the order
+  * retrieves the order's container(s), they are always available
+    * 1 bags for rush / same day
+    * 1+ boxes for next day / national (1 container per 6 eaches)
+    * PPP aborts order fulfillment when OOP
 * pick an order
   * walks to pick area
-  * pick order kit
-    * Repeat until picking all order items
-      * for each order carry bundle
-         * for each product in carry bundle
-           * walk to product pick slot location
-           * pick product
-           * Abort current PnP cycle in case product not available, execute the put-away order kit below
-         * carry bundle to pack area
-         * if it does not have one, request order kit location and wait until one is available
-         * walk to order kit location
-         * add bundle to order kit
-         * return to pick area, for any additional order items; stay in pack area otherwise
+  * Repeat until picked items == order items
+    * Repeat until items in container == items per container
+      * picks the next order item
+        * if OOS condition arises
+          * puts away the items in box at hand
+          * puts away items in outbound shelf box(es) - pack area
+          * aborts order fulfillment
+    * takes packing container, bo, to an outbound box shelf location (∞)
 * pack an order
-  * build order parcel(s)
-  * retrieves pack resources for parcel(s)
-    * Abort current PnP cycle in case they cannot retrieve pack resources, execute the put-away order parcel(s) below
   * pack the parcels
 * label an order
   * walks to the label area
   * retrieves the label material
-    * Abort current PnP cycle in case they cannot retrieve the label material, execute the put-away order parcel(s) procedure
+    * If OOL
+      * puts away items in outbound shelf box(es) - pack area
+      *  aborts order fulfillment
   * wait for label printer
   * labels the parcel(s)
 * set an order for delivery
   * walks to the delivery area
   * retrieves delivery fridge space, for some parcels
-    * Abort current PnP cycle in case they cannot retrieve the fridge space, execute the put-away order parcel(s) procedure
+    * if OOF
+      * puts away items in outbound shelf box(es) - pack area
+      * aborts order fulfillment
   * places the parcel(s) in delivery area
   * return to check in area
 
