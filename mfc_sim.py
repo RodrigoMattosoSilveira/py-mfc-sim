@@ -13,7 +13,7 @@ import threading
 
 class PPP(object):
     """
-    The PPP process (each ppp has a name) arrives at the order station (order_station), requests an order, fulfills the
+    The PPP process (each ppp has a name) arrives at the order station (order_area), requests an order, fulfills the
     order and yells hooray
     """
 
@@ -93,7 +93,7 @@ class PPP(object):
 
     def checkin(self, _env):
         workflow = [
-            self.order_station,
+            self.order_area,
             self.pick_area,
             self.pack_area,
             self.label_area,
@@ -139,7 +139,7 @@ class PPP(object):
                 self.pppShiftTally.workTime += break_time
                 self.print_order_stats()
 
-    def order_station(self):
+    def order_area(self):
         # start counting order station time
         simulation_status = True
         station_start = self.env.now
