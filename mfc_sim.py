@@ -236,20 +236,19 @@ class PPP(object):
             yield _order_tablet
             self.show_bread_crumbs('done waiting for tablet')
 
-            # got tablet
-            if not self.pppOrderTally:
-                # record the order stats
-                self.show_bread_crumbs('start recording the order stats')
-                _min = params.TIME_TO_RECORD_ORDER_STATS_MIN
-                _max = params.TIME_TO_RECORD_ORDER_STATS_MAX
-                time = random.randrange(_min, _max)
-                yield self.env.timeout(time)
-                self.show_bread_crumbs(' done recording the order stats')
-            # wait for an order
-            self.show_bread_crumbs('start waiting for an order')
-            time = rng.get_random_normal(params.ORDER_INTER_ARRIVAL_TIME_MEAN, params.ORDER_INTER_ARRIVAL_TIME_SIGMA)
-            yield self.env.timeout(time)
-            self.show_bread_crumbs('done waiting for an order')
+        # got tablet, record the order stats
+        self.show_bread_crumbs('start recording the order stats')
+        _min = params.TIME_TO_RECORD_ORDER_STATS_MIN
+        _max = params.TIME_TO_RECORD_ORDER_STATS_MAX
+        time = random.randrange(_min, _max)
+        yield self.env.timeout(time)
+        self.show_bread_crumbs(' done recording the order stats')
+
+        # wait for an order
+        self.show_bread_crumbs('start waiting for an order')
+        time = rng.get_random_normal(params.ORDER_INTER_ARRIVAL_TIME_MEAN, params.ORDER_INTER_ARRIVAL_TIME_SIGMA)
+        yield self.env.timeout(time)
+        self.show_bread_crumbs('done waiting for an order')
 
         # accumulate order station time
         self.show_bread_crumbs('leaving order station')
