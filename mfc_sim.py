@@ -95,9 +95,9 @@ class PPP(object):
         workflow = [
             self.order_station,
             self.pick_station,
-            self.pack_station,
-            self.label_station,
-            self.deliver_station
+            self.packing_station,
+            self.labeling_station,
+            self.courier_station
         ]
         while self.env.now <= params.SHIFT_WORK_DURATION:
             self.pppOrderTally = None
@@ -140,16 +140,39 @@ class PPP(object):
                 self.print_order_stats()
 
     def order_station(self):
+        """
+        - Travel to, aPPP travels to the order station - We will model travel to the order station by selecting from an
+        uniform distribution, based on the average time to travel to the order station;
+
+         A PPP requests the tablet to record their previous order, if there was one, and request his new order to
+         fulfill; once the tablet is available the PPP records the just completed order's stats, if there was one, and
+         requests his new order;
+
+        An order station has an inter arrival time based on distribution, with a mean of 10 and a sigma of 2.6.
+
+        A ppp has to request an order, wait for its inter arrival time and then proceed with fulfilling the order
+
+        - Travel to - We will model travel to the order station by selecting from an uniform distribution, based on the
+        average time to travel to the order station;
+
+        - Shift End - We will end the iteration simulation after the PPP works a configurable number shift hours;
+        - Shift Break - We will insert a 1 hour shift break after a PPP works 4 hours; in this case we will not have the
+        hourly break;
+        - Hourly Break - We will insert a 5 minutes hourly break after a PPP works 55 minutes;
+        - Order Inter Arrival Time - This varies based on the time of the day, day of the month, and season. We will
+        start with a simple model, by selecting from uniform distribution, based on on the average order inter arrival
+        time;
+        """
         # start counting order station time
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the order station')
+        self.show_bread_crumbs('starts walking to the order station at')
         _min = params.TIME_TO_WALK_TO_ORDER_STATION_MIN
         _max = params.TIME_TO_WALK_TO_ORDER_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('arrives the order station')
+        self.show_bread_crumbs('arrives the order station at')
 
         # PPP requests the tablet; once it is available, once the tablet is available the PPP records the just completed
         # order's stats, if there was one, and requests his new order;
@@ -204,7 +227,7 @@ class PPP(object):
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the pick station')
+        self.show_bread_crumbs('starts walking to the pick station at')
         _min = params.TIME_TO_WALK_TO_PICK_STATION_MIN
         _max = params.TIME_TO_WALK_TO_PICK_STATION_MAX
         time = random.randrange(_min, _max)
@@ -215,12 +238,12 @@ class PPP(object):
         #  TODO replace this with the full simulation logic
         for k in range(1, self.pppOrderTally.items + 1):
             self.show_bread_crumbs('Picking order item #%s' % k)
-
-            # walk to pick the next item
-            _min = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MIN
-            _max = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MAX
-            time = random.randrange(_min, _max)
-            yield self.env.timeout(time)
+            if k > 0:
+                # walk to pick the next item
+                _min = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MIN
+                _max = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MAX
+                time = random.randrange(_min, _max)
+                yield self.env.timeout(time)
 
             # Interrupt the process of we do not have inventory
             # TODO Review this with someone who understands this better than I do!
@@ -245,7 +268,25 @@ class PPP(object):
 
         return simulation_status
 
-    def pack_station(self):
+    def packing_station(self):
+        """
+            - Travel to - We will model travel to the packing station by selecting from an uniform distribution, based
+            on the average time to travel to the pack station;
+            - Packing Resources Location Availability - Our model will ensure that two PPP do not attempt to retrieve
+            the packing resources for the same SKU simultaneously; we will model packing resource location availability
+            by selecting a random value from an uniform distributions that yields  a very high packing resource location
+            availability probability;
+                - When two PPPs , attempt to retrieve packing resources for the same SKU simultaneously, our model will
+                wait until the first PPP finishes retrieving;
+            - Packing Resources Availability - we will model Packing Resources availability by selecting a random value
+            from a distribution that yields  a very high probability that the packing resources are available;
+                - The model will transition the PPP back to the order station when an order's packing resources are not
+                available, count the time, but not the number of fulfilled orders;
+            - Packing Resources Retrieval Time - We will model it by selecting from an uniform distribution, based on
+            the average time to retrieve package resources;
+            - Packing - We will model the time for the PPPs to pack their orders by selecting from an uniform
+            distribution, based on the average time to pack an order;
+        """
         # start counting packing station time
         simulation_status = True
         station_start = self.env.now
@@ -262,8 +303,8 @@ class PPP(object):
             yield req
 
             if app_numbers.get_random_packing_resources_qtd() == 0:
-                self.show_bread_crumbs(orderStatus.OrderStatus.OPC.name)
-                self.pppOrderTally.status = orderStatus.OrderStatus.OPC.name
+                self.show_bread_crumbs(orderStatus.OrderStatus.OOP.name)
+                self.pppOrderTally.status = orderStatus.OrderStatus.OOP.name
                 simulation_status = False
             else:
                 _min = params.TIME_TO_PACK_ORDER_MIN
@@ -281,7 +322,25 @@ class PPP(object):
 
         return simulation_status
 
-    def label_station(self):
+    def labeling_station(self):
+        """
+            - Travel to - We will model travel to the labeling station by selecting from an uniform distribution, based
+            on the average time to travel to the labeling station;
+            - Print Label Location Availability - Our model will ensure that two PPP do not attempt to print their
+            orders' labels simultaneously; we will model print label location availability by selecting a random value
+            from a distributions that yields a very high print label location availability probability;
+                - When two PPPs , attempt to print labels simultaneously, our model will wait until the first PPP
+                finishes printing;
+            - Print Label  Resources Availability - we will model Print Label Resources availability by selecting a
+            random value from a distribution that yields a very high probability that the print label resources are
+            available;
+                - The model will transition the PPP back to the order station when an order's print labels are not
+                available, count the time, but not the number of fulfilled orders;
+            - Print Label Time - We will model it by selecting from an uniform distribution, based on the average time
+            to print a label;
+            - Labeling - We will model the PPPs labeling time by selecting from an uniform distribution, based on the
+            average time to label an order;
+        """
         # start counting labeling station time
         simulation_status = True
         station_start = self.env.now
@@ -317,7 +376,18 @@ class PPP(object):
 
         return simulation_status
 
-    def deliver_station(self):
+    def courier_station(self):
+        """
+            - Travel to - We will model travel to the courier station by selecting from an uniform distribution, based
+            on the average time to travel to the courier station;
+            - Courier Station Location Availability - Our model will ensure that two PPPs do not attempt to place their
+            orders' at the courier station simultaneously; we will model courier location availability by selecting a
+            random value from a distributions that yields a very high courier location availability probability;
+                - When two PPPs attempt place their orders' at the courier station simultaneously, our model will
+                wait until the first PPP finishes tp place their order;
+            - Placing Order - We will model the PPPs placing their orders' at the courier station by selecting from an
+            uniform distribution, based on the average time to place an order;
+        """
         # start counting courier station time
         simulation_status = True
         station_start = self.env.now
@@ -347,12 +417,11 @@ class PPP(object):
         return simulation_status
 
     def show_bread_crumbs(self, detail):
-        msg = '%s,%s,%s,%s' % (
-            str(self.env.now).zfill(5),
-            self.pppShiftTally.pppId,
-            self.pppOrderTally.orderId, detail)
+        msg = '%s %s %s at %s' % (str(self.env.now).zfill(5),
+                                  self.pppShiftTally.pppId,
+                                  self.pppOrderTally.orderId, detail)
         print(msg)
-        list_array = [str(self.env.now).zfill(5), self.pppShiftTally.pppId, self.pppOrderTally.orderId, detail]
+        list_array = [msg]
         self.pppActivityLog.write(list_array)
 
     def print_order_stats(self):
@@ -418,14 +487,14 @@ if os.path.isfile(params.PPP_ACTIVITY_LOG):
 orderTallyLogLock = threading.Lock()
 orderTallyLog = csv.CSV(params.ORDER_TALLY_LOG, orderTallyLogLock)
 orderTallyLog.open()
-header = ['time', 'pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'labelTime', 'courierTime', 'breakTime',
+header = ['pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'labelTime', 'courierTime', 'breakTime',
           'totalOrderTime', 'status']
 orderTallyLog.write(header)
 
 pppActivityLogLock = threading.Lock()
 pppActivityLog = csv.CSV(params.PPP_ACTIVITY_LOG, pppActivityLogLock)
 pppActivityLog.open()
-header = ['time','pppId', 'orderId', 'activity']
+header = ['pppId', 'orderId', 'activity']
 pppActivityLog.write(header)
 
 for i in range(params.NUMBER_OF_PPP):
