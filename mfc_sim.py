@@ -245,7 +245,7 @@ class PPP(object):
         with self.packingLocationResource.request() as req:
             yield req
 
-            if app_numbers.get_random_packing_resources_qtd() == 0:
+            if app_numbers.get_random_pack_resources_qtd() == 0:
                 self.show_bread_crumbs(orderStatus.OrderStatus.OOP.name)
                 self.pppOrderTally.status = orderStatus.OrderStatus.OOP.name
                 simulation_status = False
@@ -266,21 +266,21 @@ class PPP(object):
         return simulation_status
 
     def label_area(self):
-        # start counting labeling station time
+        # start counting label area time
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the labeling station')
+        self.show_bread_crumbs('starts walking to the label area ')
         _min = params.TIME_TO_WALK_TO_LABEL_STATION_MIN
         _max = params.TIME_TO_WALK_TO_LABEL_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('arrived at the labeling station')
+        self.show_bread_crumbs('arrived at the label area ')
 
         # label the order
         with self.labelPrintersResource.request() as req:
             yield req
-            if app_numbers.get_random_labeling_resources_qtd() == 0:
+            if app_numbers.get_random_label_resources_qtd() == 0:
                 self.show_bread_crumbs(orderStatus.OrderStatus.OOL.name)
                 self.pppOrderTally.status = orderStatus.OrderStatus.OOL.name
                 simulation_status = False

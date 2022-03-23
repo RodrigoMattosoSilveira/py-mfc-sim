@@ -18,9 +18,9 @@ def get_random_sku_qtd():
     return get_random_poisson(params.RANDOM_SKU_QTD_A)
 
 
-def get_random_packing_resources_qtd():
+def get_random_pack_resources_qtd():
     return get_random_poisson(params.RANDOM_PACKING_RESOURCES_QTD_A)
 
 
-def get_random_labeling_resources_qtd():
+def get_random_label_resources_qtd():
     return get_random_poisson(params.RANDOM_LABELING_RESOURCES_QTD_A)
