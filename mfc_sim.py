@@ -95,7 +95,7 @@ class PPP(object):
         workflow = [
             self.order_station,
             self.pick_station,
-            self.packing_station,
+            self.pack_area,
             self.label_area,
             self.deliver_area
         ]
@@ -229,7 +229,7 @@ class PPP(object):
 
         return simulation_status
 
-    def packing_station(self):
+    def pack_area(self):
         # start counting packing station time
         simulation_status = True
         station_start = self.env.now
