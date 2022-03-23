@@ -108,8 +108,6 @@ class PPP(object):
 
         # Now fulfill orders
         while self.env.now <= params.SHIFT_WORK_DURATION:
-            self.pppOrderTally = None
-            self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
             self.show_bread_crumbs('Order fulfillment started')
 
             #  Refactored based on Eric's "code review"
@@ -117,35 +115,67 @@ class PPP(object):
                 if not (yield self.env.process(step())):
                     break
 
-            # log
+            # record the order fulfillment stats at the end of the journey
+            yield self.env.process(self.record_order_fulfillment_stats())
+
+            # log results
             self.print_order_stats()
 
-            # Before handling a new order, check whether the PPP worked a full shift, enough to take a shift break
-            break_time = 0
-            if self.pppShiftTally.nextShiftBreak < _env.now < params.SHIFT_WORK_DURATION:
-                # PPP is due for a shift break
-                self.show_bread_crumbs('taking a %s seconds shift break' % params.SHIFT_BREAK_DURATION)
-                yield self.env.timeout(params.SHIFT_BREAK_DURATION)
-                self.pppShiftTally.nextShiftBreak += self.pppShiftTally.nextShiftBreak
-                self.pppShiftTally.nextHourBreak = self.env.now + (3600 - params.HOUR_BREAK_DURATION)
-                break_time = params.SHIFT_BREAK_DURATION
-            else:
-                if self.env.now > self.pppShiftTally.nextHourBreak:
-                    # PPP is due for a shift break
-                    self.show_bread_crumbs('taking a %s seconds hourly break' % params.HOUR_BREAK_DURATION)
-                    yield self.env.timeout(params.HOUR_BREAK_DURATION)
-                    self.pppShiftTally.nextHourBreak = self.env.now + (3600 - params.HOUR_BREAK_DURATION)
-                    break_time = params.HOUR_BREAK_DURATION
+            # # Before handling a new order, check whether the PPP worked a full shift, enough to take a shift break
+            yield self.env.process(self.break_time())
 
-            if break_time > 0:
-                # Add a break orderTally
-                self.pppOrderTally = None
-                self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
-                self.pppOrderTally.breakTime = break_time
-                self.pppOrderTally.workTime += break_time
-                self.pppOrderTally.status = orderStatus.OrderStatus.Break.name
-                self.pppShiftTally.workTime += break_time
-                self.print_order_stats()
+    def record_order_fulfillment_stats(self):
+        # record the order fulfillment stats at the end of the journey
+        station_start = self.env.now
+        with self.orderTabletResource.request() as _order_tablet:
+            # request tablet
+            self.show_bread_crumbs('start waiting for tablet')
+            yield _order_tablet
+            self.show_bread_crumbs('done waiting for tablet')
+
+        # got tablet, record the order stats
+        self.show_bread_crumbs('start recording the order stats')
+        _min = params.TIME_TO_RECORD_ORDER_STATS_MIN
+        _max = params.TIME_TO_RECORD_ORDER_STATS_MAX
+        time = random.randrange(_min, _max)
+        yield self.env.timeout(time)
+        self.show_bread_crumbs(' done recording the order stats')
+
+        station_time = self.env.now - station_start
+        self.pppOrderTally.orderTime = station_time
+        self.pppOrderTally.workTime += station_time
+        self.pppShiftTally.workTime += station_time
+
+    def break_time(self):
+        # Before handling a new order, check whether the PPP worked a full shift, enough to take a shift break
+        # start counting  cleaning receiving area time
+        break_duration = 0
+        if self.pppShiftTally.nextShiftBreak < self.env.now < params.SHIFT_WORK_DURATION:
+            # PPP is due for a shift break
+            self.show_bread_crumbs('taking a %s seconds shift break' % params.SHIFT_BREAK_DURATION)
+            yield self.env.timeout(params.SHIFT_BREAK_DURATION)
+            self.pppShiftTally.nextShiftBreak += self.pppShiftTally.nextShiftBreak
+            self.pppShiftTally.nextHourBreak = self.env.now + (3600 - params.HOUR_BREAK_DURATION)
+            break_duration = params.SHIFT_BREAK_DURATION
+        else:
+            if self.env.now > self.pppShiftTally.nextHourBreak:
+                # PPP is due for a shift break
+                self.show_bread_crumbs('taking a %s seconds hourly break' % params.HOUR_BREAK_DURATION)
+                yield self.env.timeout(params.HOUR_BREAK_DURATION)
+                self.pppShiftTally.nextHourBreak = self.env.now + (3600 - params.HOUR_BREAK_DURATION)
+                break_duration = params.HOUR_BREAK_DURATION
+
+        if break_duration > 0:
+            # Add a break orderTally
+            self.pppOrderTally = None
+            self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
+            self.pppOrderTally.breakTime = break_duration
+            self.pppOrderTally.workTime += break_duration
+            self.pppOrderTally.status = orderStatus.OrderStatus.Break.name
+            self.pppShiftTally.workTime += break_duration
+            self.print_order_stats()
+
+        return True
 
     def cleaning_receiving(self):
         # start counting  cleaning receiving area time
@@ -228,27 +258,53 @@ class PPP(object):
         yield self.env.timeout(time)
         self.show_bread_crumbs('arrives the order station at')
 
-        # PPP requests the tablet; once it is available, once the tablet is available the PPP records the just completed
-        # order's stats, if there was one, and requests his new order;
-        with self.orderTabletResource.request() as _order_tablet:
+        # got tablet, read and memorize the order
+        with self.orderTabletResource.request() as _order_tablet_1:
             # request tablet
             self.show_bread_crumbs('start waiting for tablet')
-            yield _order_tablet
+            yield _order_tablet_1
             self.show_bread_crumbs('done waiting for tablet')
 
-        # got tablet, record the order stats
-        self.show_bread_crumbs('start recording the order stats')
+        self.show_bread_crumbs('start memorizing the order')
         _min = params.TIME_TO_RECORD_ORDER_STATS_MIN
         _max = params.TIME_TO_RECORD_ORDER_STATS_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs(' done recording the order stats')
+        self.show_bread_crumbs('done memorizing the order')
 
         # wait for an order
         self.show_bread_crumbs('start waiting for an order')
         time = rng.get_random_normal(params.ORDER_INTER_ARRIVAL_TIME_MEAN, params.ORDER_INTER_ARRIVAL_TIME_SIGMA)
         yield self.env.timeout(time)
         self.show_bread_crumbs('done waiting for an order')
+
+        # get an order tally
+        self.pppOrderTally = None
+        self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
+
+        # Randomize Rush/SameDay or NextDay/National and number og items
+        self.pppOrderTally.orderType = app_numbers.is_order_rush_next_day()
+        if self.pppOrderTally.orderType == params.ORDER_TYPE_RUSH:
+            # Rush and same day orders have 1 item
+            # TODO Really?
+            self.pppOrderTally.items = 1
+        else:
+            self.pppOrderTally.items = app_numbers.get_random_order_items()
+
+        # get the package containers
+        self.show_bread_crumbs('starts walking to retrieve package containers')
+        _min = params.TIME_TO_WALK_TO_PACK_STATION_MIN
+        _max = params.TIME_TO_WALK_TO_PACK_STATION_MAX
+        time = random.randrange(_min, _max)
+        yield self.env.timeout(time)
+        self.show_bread_crumbs('done walking to retrieve package containers')
+
+        if self.pppOrderTally.orderType == params.ORDER_TYPE_NATIONAL:
+            if not app_numbers.got_package_containers():
+                # did not find a package container, abort this order fulfillment
+                self.show_bread_crumbs(orderStatus.OrderStatus.OOP.name)
+                self.pppOrderTally.status = orderStatus.OrderStatus.OOP.name
+                simulation_status = False
 
         # accumulate order station time
         self.show_bread_crumbs('leaving order station')
