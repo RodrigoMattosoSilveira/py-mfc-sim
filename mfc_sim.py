@@ -9,6 +9,7 @@ from Constants import OrderStatus as orderStatus
 import Modules.csv_file_handler as csv
 import os
 import threading
+from math import trunc
 
 
 class PPP(object):
@@ -99,6 +100,13 @@ class PPP(object):
             self.label_area,
             self.deliver_area
         ]
+
+        # do these only once
+        yield self.env.process(self.cleaning_receiving())
+        yield self.env.process(self.cycle_count())
+        yield self.env.process(self.parcel_level_scanning())
+
+        # Now fulfill orders
         while self.env.now <= params.SHIFT_WORK_DURATION:
             self.pppOrderTally = None
             self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
@@ -139,8 +147,77 @@ class PPP(object):
                 self.pppShiftTally.workTime += break_time
                 self.print_order_stats()
 
+    def cleaning_receiving(self):
+        # start counting  cleaning receiving area time
+        simulation_status = True
+        station_start = self.env.now
+
+        self.pppOrderTally = None
+        self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
+
+        # Simulate cleaning receiving
+        self.show_bread_crumbs('Starting cleaning receiving')
+        area_time = trunc(params.SHIFT_WORK_DURATION * params.CLEANING_RECEIVING_SHIFT_PERCENT_ALLOCATION)
+        yield self.env.timeout(area_time)
+        self.show_bread_crumbs('Stop cleaning receiving')
+        station_time = self.env.now - station_start
+
+        self.pppOrderTally.cleaningReceivingTime = station_time
+        self.pppOrderTally.workTime += station_time
+        self.pppOrderTally.status = orderStatus.OrderStatus.CR.name
+        self.pppShiftTally.workTime += station_time
+        self.print_order_stats()
+
+        return simulation_status
+
+    def cycle_count(self):
+        # start counting  cycle count time
+        simulation_status = True
+        station_start = self.env.now
+
+        self.pppOrderTally = None
+        self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
+
+        # Simulate cycle counting
+        self.show_bread_crumbs('Starting cycle counting')
+        area_time = trunc(params.SHIFT_WORK_DURATION * params.CYCLE_COUNT_SHIFT_PERCENT_ALLOCATION)
+        yield self.env.timeout(area_time)
+        self.show_bread_crumbs('Stop cycle counting')
+        station_time = self.env.now - station_start
+
+        self.pppOrderTally.cleaningReceivingTime = station_time
+        self.pppOrderTally.workTime += station_time
+        self.pppOrderTally.status = orderStatus.OrderStatus.CC.name
+        self.pppShiftTally.workTime += station_time
+        self.print_order_stats()
+
+        return simulation_status
+
+    def parcel_level_scanning(self):
+        # start counting  parcel level scanning time
+        simulation_status = True
+        station_start = self.env.now
+
+        self.pppOrderTally = None
+        self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
+
+        # Simulate cycle counting
+        self.show_bread_crumbs('Starting parcel level scanning')
+        area_time = trunc(params.SHIFT_WORK_DURATION * params.CYCLE_COUNT_SHIFT_PERCENT_ALLOCATION)
+        yield self.env.timeout(area_time)
+        self.show_bread_crumbs('Stop parcel level scanning')
+        station_time = self.env.now - station_start
+
+        self.pppOrderTally.parcelLevelScanningTime = station_time
+        self.pppOrderTally.workTime += station_time
+        self.pppOrderTally.status = orderStatus.OrderStatus.PLS.name
+        self.pppShiftTally.workTime += station_time
+        self.print_order_stats()
+
+        return simulation_status
+
     def order_area(self):
-        # start counting order station time
+        # start counting order area time
         simulation_status = True
         station_start = self.env.now
 
@@ -340,7 +417,7 @@ class PPP(object):
 
     def print_order_stats(self):
         # print
-        print('%s %s %s %s %s %s %s %s  %s %s %s %s %a' % (
+        print('%s %s %s %s %s %s %s %s  %s %s %s %s %s %s %a' % (
             str(self.env.now).zfill(5),
             self.pppShiftTally.pppId,
             self.pppOrderTally.orderId,
@@ -350,8 +427,10 @@ class PPP(object):
             str(self.pppOrderTally.packTime).zfill(3),
             str(self.pppOrderTally.labelTime).zfill(3),
             str(self.pppOrderTally.courierTime).zfill(3),
+            str(self.pppOrderTally.cleaningReceivingTime).zfill(3),
+            str(self.pppOrderTally.cycleCountTime).zfill(3),
+            str(self.pppOrderTally.parcelLevelScanningTime).zfill(3),
             str(self.pppOrderTally.breakTime).zfill(4),
-            str(self.pppOrderTally.workTime).zfill(4),
             str(self.pppShiftTally.workTime).zfill(5),
             self.pppOrderTally.status))
         # log
@@ -364,6 +443,9 @@ class PPP(object):
                       self.pppOrderTally.packTime,
                       self.pppOrderTally.labelTime,
                       self.pppOrderTally.courierTime,
+                      self.pppOrderTally.cleaningReceivingTime,
+                      self.pppOrderTally.cycleCountTime,
+                      self.pppOrderTally.parcelLevelScanningTime,
                       self.pppOrderTally.breakTime,
                       self.pppOrderTally.workTime,
                       self.pppOrderTally.status]
@@ -401,8 +483,22 @@ if os.path.isfile(params.PPP_ACTIVITY_LOG):
 orderTallyLogLock = threading.Lock()
 orderTallyLog = csv.CSV(params.ORDER_TALLY_LOG, orderTallyLogLock)
 orderTallyLog.open()
-header = ['pppId', 'orderId', 'items', 'orderTime', 'pickTime', 'packTime', 'labelTime', 'courierTime', 'breakTime',
-          'totalOrderTime', 'status']
+header = [
+    'time',
+    'pppId',
+    'orderId',
+    'items',
+    'orderTime',
+    'pickTime',
+    'packTime',
+    'labelTime',
+    'courierTime',
+    'c_rTime',
+    'c_cTime',
+    'plsTime',
+    'breakTime',
+    'totalOrderTime',
+    'status']
 orderTallyLog.write(header)
 
 pppActivityLogLock = threading.Lock()
