@@ -288,8 +288,12 @@ class PPP(object):
             # Rush and same day orders have 1 item
             # TODO Really?
             self.pppOrderTally.items = 1
+            self.pppOrderTally.numberOfBoxes = 1
         else:
             self.pppOrderTally.items = app_numbers.get_random_order_items()
+            self.pppOrderTally.numberOfBoxes = 1
+            if self.pppOrderTally.items > 6:
+                self.pppOrderTally.numberOfBoxes = 2
 
         # get the package containers
         self.show_bread_crumbs('starts walking to retrieve package containers')
@@ -316,50 +320,113 @@ class PPP(object):
         return simulation_status
 
     def pick_area(self):
-        # start counting pick station time
+        # start counting packing station time
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the pick station at')
-        _min = params.TIME_TO_WALK_TO_PICK_STATION_MIN
-        _max = params.TIME_TO_WALK_TO_PICK_STATION_MAX
-        time = random.randrange(_min, _max)
-        yield self.env.timeout(time)
-        self.show_bread_crumbs('arrives the pick station')
-
-        # pick the order
-        #  TODO replace this with the full simulation logic
-        for k in range(1, self.pppOrderTally.items + 1):
-            self.show_bread_crumbs('Picking order item #%s' % k)
-            if k > 0:
-                # walk to pick the next item
-                _min = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MIN
-                _max = params.TIME_TO_WALK_TO_PICK_NEXT_ITEM_MAX
-                time = random.randrange(_min, _max)
-                yield self.env.timeout(time)
-
-            # Interrupt the process of we do not have inventory
-            # TODO Review this with someone who understands this better than I do!
+        items_on_hand = 0
+        max_items_in_container = 1
+        if self.pppOrderTally.orderType == params.ORDER_TYPE_NATIONAL:
+            max_items_in_container = 1
+        total_parcels = 0
+        for k in range(self.pppOrderTally.items):
+            # go to pick slot location
+            self.show_bread_crumbs('picking item #%s' % k)
+            self.show_bread_crumbs('walk to the pick slot location')
+            _min = params.TIME_TO_WALK_TO_PICK_STATION_MIN
+            _max = params.TIME_TO_WALK_TO_PICK_STATION_MAX
+            time = random.randrange(_min, _max)
+            yield self.env.timeout(time)
+            self.show_bread_crumbs('arrives the the pick slot location')
             if app_numbers.get_random_sku_qtd() == 0:
+                self.show_bread_crumbs('item is OOS')
                 self.show_bread_crumbs(orderStatus.OrderStatus.OOS.name)
                 self.pppOrderTally.status = orderStatus.OrderStatus.OOS.name
                 simulation_status = False
+                break
             else:
+                # pick the item
+                self.show_bread_crumbs('starts picking item')
                 _min = params.TIME_TO_PICK_ITEM_MIN
                 _max = params.TIME_TO_PICK_ITEM_MAX
                 time = random.randrange(_min, _max)
                 yield self.env.timeout(time)
-            if not simulation_status:
-                break
+                self.show_bread_crumbs('done picking item')
+                # return to the table
+                self.show_bread_crumbs('walk to the table')
+                _min = params.TIME_TO_WALK_TO_PICK_STATION_MIN
+                _max = params.TIME_TO_WALK_TO_PICK_STATION_MAX
+                time = random.randrange(_min, _max)
+                yield self.env.timeout(time)
+                self.show_bread_crumbs('arrives at the table')
+                # place item in container
+                self.show_bread_crumbs('place item in container')
+                _min = params.TIME_TO_PLACE_ITEM_IN_CONTAINER_MIN
+                _max = params.TIME_TO_PLACE_ITEM_IN_CONTAINER_MAX
+                time = random.randrange(_min, _max)
+                yield self.env.timeout(time)
+                self.show_bread_crumbs('placed item in container')
+                items_on_hand += 1
+                # take container to the outbound box shelf area, if full
+                if items_on_hand == max_items_in_container:
+                    total_parcels += 1
+                    # take container to the outbound box shelf area
+                    self.show_bread_crumbs('container is full')
+                    self.show_bread_crumbs('walk to outbound box shelf area')
+                    _min = params.TIME_TO_WALK_TO_OUTBOUND_SHELF_AREA_MIN
+                    _max = params.TIME_TO_WALK_TO_OUTBOUND_SHELF_AREA_MAX
+                    time = random.randrange(_min, _max)
+                    yield self.env.timeout(time)
+                    self.show_bread_crumbs('walked to outbound box shelf area')
+                    # place container at outbound box shelf
+                    self.show_bread_crumbs('place container on outbound box shelf area')
+                    _min = params.TIME_TO_PLACE_CONTAINER_ON_OUTBOUND_SHELF_MIN
+                    _max = params.TIME_TO_PLACE_CONTAINER_ON_OUTBOUND_SHELF_MAX
+                    time = random.randrange(_min, _max)
+                    yield self.env.timeout(time)
+                    self.show_bread_crumbs('placed container on outbound box shelf area')
+                    items_on_hand = 0
+                    if k == self.pppOrderTally.items:
+                        self.show_bread_crumbs('finished picking while at outbound box shelf area, stay there!')
+                        break
+        # If simulation_status = False, restock the items in hand, and the one in the outbound shelf containers
+        if not simulation_status:
+            yield self.env.process(self.restock_items())
+        else:
+            if items_on_hand > 0:
+                # take container to the outbound box shelf area
+                self.show_bread_crumbs('walk to outbound box shelf area')
+                _min = params.TIME_TO_WALK_TO_OUTBOUND_SHELF_AREA_MIN
+                _max = params.TIME_TO_WALK_TO_OUTBOUND_SHELF_AREA_MAX
+                time = random.randrange(_min, _max)
+                yield self.env.timeout(time)
+                self.show_bread_crumbs('walked to outbound box shelf area')
+                # place container at outbound box shelf
+                self.show_bread_crumbs('placing container on outbound box shelf area')
+                _min = params.TIME_TO_PLACE_CONTAINER_ON_OUTBOUND_SHELF_MIN
+                _max = params.TIME_TO_PLACE_CONTAINER_ON_OUTBOUND_SHELF_MAX
+                time = random.randrange(_min, _max)
+                yield self.env.timeout(time)
+                self.show_bread_crumbs('placed container on outbound box shelf area')
 
-        # accumulate pick station time
-        self.show_bread_crumbs('leaving pick station')
+        # accumulate pick time
+        self.show_bread_crumbs('leaving pack station')
         station_time = self.env.now - station_start
         self.pppOrderTally.pickTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
 
         return simulation_status
+
+    def restock_items(self):
+        # TODO using blunt force, refine later
+        # take container to the outbound box shelf area
+        self.show_bread_crumbs('restocking items')
+        _min = params.TIME_TO_RESTOCK_ITEMS_MIN
+        _max = params.TIME_TO_RESTOCK_ITEMS_MAX
+        time = random.randrange(_min, _max)
+        yield self.env.timeout(time)
+        self.show_bread_crumbs('restocked items')
 
     def pack_area(self):
         # start counting packing station time
