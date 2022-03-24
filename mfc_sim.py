@@ -296,7 +296,9 @@ class PPP(object):
             self.pppOrderTally.numberOfBoxes = 1
             if self.pppOrderTally.items > 6:
                 self.pppOrderTally.numberOfBoxes = 2
-            self.show_bread_crumbs('Nationwide Order, %s boxes' % self.pppOrderTally.numberOfBoxes)
+            self.show_bread_crumbs('Nationwide Order, %s boxes, %s items' % (
+                self.pppOrderTally.numberOfBoxes,
+                self.pppOrderTally.items))
 
         # get the package containers
         self.show_bread_crumbs('starts walking to retrieve package containers')
@@ -433,6 +435,7 @@ class PPP(object):
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
         self.show_bread_crumbs('restocked items')
+        return True
 
     def pack_area(self):
         # start counting packing station time
@@ -500,28 +503,28 @@ class PPP(object):
         return simulation_status
 
     def deliver_area(self):
-        # start counting courier station time
+        # start counting deliver area time
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the courier station')
-        _min = params.TIME_TO_WALK_TO_COURIER_STATION_MIN
-        _max = params.TIME_TO_WALK_TO_COURIER_STATION_MAX
+        self.show_bread_crumbs('starts walking to the deliver area')
+        _min = params.TIME_TO_WALK_TO_DELIVERY_AREA_MIN
+        _max = params.TIME_TO_WALK_TO_DELIVERY_AREA_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('arrives the courier station')
+        self.show_bread_crumbs('arrives the deliver area')
 
         # label the order
         #  TODO replace this with the full simulation logic
-        _min = params.TIME_TO_PLACE_ORDER_AT_COURIER_STATION_MIN
-        _max = params.TIME_TO_PLACE_ORDER_AT_COURIER_STATION_MAX
+        _min = params.TIME_TO_PLACE_ORDER_AT_DELIVERY_AREA_MIN
+        _max = params.TIME_TO_PLACE_ORDER_AT_DELIVERY_AREA_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('placed the order at the courier station')
+        self.show_bread_crumbs('placed the order at the deliver area')
 
-        # accumulate  courier station time
+        # accumulate  cdeliver area time
         station_time = self.env.now - station_start
-        self.pppOrderTally.courierTime = station_time
+        self.pppOrderTally.deliveryTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
         self.pppShiftTally.orders += 1
@@ -551,7 +554,7 @@ class PPP(object):
             str(self.pppOrderTally.pickTime).zfill(3),
             str(self.pppOrderTally.packTime).zfill(3),
             str(self.pppOrderTally.labelTime).zfill(3),
-            str(self.pppOrderTally.courierTime).zfill(3),
+            str(self.pppOrderTally.deliveryTime).zfill(3),
             str(self.pppOrderTally.cleaningReceivingTime).zfill(3),
             str(self.pppOrderTally.cycleCountTime).zfill(3),
             str(self.pppOrderTally.parcelLevelScanningTime).zfill(3),
@@ -567,7 +570,7 @@ class PPP(object):
                       self.pppOrderTally.pickTime,
                       self.pppOrderTally.packTime,
                       self.pppOrderTally.labelTime,
-                      self.pppOrderTally.courierTime,
+                      self.pppOrderTally.deliveryTime,
                       self.pppOrderTally.cleaningReceivingTime,
                       self.pppOrderTally.cycleCountTime,
                       self.pppOrderTally.parcelLevelScanningTime,
@@ -575,7 +578,6 @@ class PPP(object):
                       self.pppOrderTally.workTime,
                       self.pppOrderTally.status]
         self.orderTallyLog.write(list_array)
-
 
 """
 See https://simpy.readthedocs.io/en/latest/simpy_intro/shared_resources.html
@@ -586,7 +588,7 @@ We will use one environment to simulate a MFC shift's work
         Packing boxes
         Shipping labels
         Label printer
-        Couriers' delivery slots
+        Delivery slots
     We will simulate one or more PPP order fulfillment work
         We will use a OrderSimulator to simulate a PPP order fulfillment for a PPPs whole shift
             PppShiftTally - The OrderSimulator uses it to collect the each PPP shift data
@@ -617,7 +619,7 @@ header = [
     'pickTime',
     'packTime',
     'labelTime',
-    'courierTime',
+    'deliveryTime',
     'c_rTime',
     'c_cTime',
     'plsTime',
