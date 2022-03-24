@@ -265,18 +265,18 @@ class PPP(object):
             yield _order_tablet_1
             self.show_bread_crumbs('done waiting for tablet')
 
+        # wait for an order
+        self.show_bread_crumbs('start waiting for an order')
+        time = rng.get_random_normal(params.ORDER_INTER_ARRIVAL_TIME_MEAN, params.ORDER_INTER_ARRIVAL_TIME_SIGMA)
+        yield self.env.timeout(time)
+        self.show_bread_crumbs('done waiting for an order')
+
         self.show_bread_crumbs('start memorizing the order')
         _min = params.TIME_TO_RECORD_ORDER_STATS_MIN
         _max = params.TIME_TO_RECORD_ORDER_STATS_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
         self.show_bread_crumbs('done memorizing the order')
-
-        # wait for an order
-        self.show_bread_crumbs('start waiting for an order')
-        time = rng.get_random_normal(params.ORDER_INTER_ARRIVAL_TIME_MEAN, params.ORDER_INTER_ARRIVAL_TIME_SIGMA)
-        yield self.env.timeout(time)
-        self.show_bread_crumbs('done waiting for an order')
 
         # get an order tally
         self.pppOrderTally = None
@@ -534,7 +534,11 @@ class PPP(object):
                                   self.pppShiftTally.pppId,
                                   self.pppOrderTally.orderId, detail)
         print(msg)
-        list_array = [msg]
+        list_array = [
+            str(self.env.now).zfill(5),
+            self.pppShiftTally.pppId,
+            self.pppOrderTally.orderId, detail
+        ]
         self.pppActivityLog.write(list_array)
 
     def print_order_stats(self):
@@ -626,7 +630,7 @@ orderTallyLog.write(header)
 pppActivityLogLock = threading.Lock()
 pppActivityLog = csv.CSV(params.PPP_ACTIVITY_LOG, pppActivityLogLock)
 pppActivityLog.open()
-header = ['pppId', 'orderId', 'activity']
+header = ['time', 'pppId', 'orderId', 'activity']
 pppActivityLog.write(header)
 
 for i in range(params.NUMBER_OF_PPP):
