@@ -112,7 +112,7 @@ class PPP(object):
             #  Refactored based on Eric's "code review"
             self.pppOrderTally = None
             self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
-            self.show_bread_crumbs('Order fulfillment started')
+            self.show_bread_crumbs('Order fulfillment started', params.MFC_AREA_ORDER)
             for step in workflow:
                 if not (yield self.env.process(step())):
                     break
@@ -123,29 +123,32 @@ class PPP(object):
             self.pppOrderTally = None
 
             # # Before handling a new order, check whether the PPP worked a full shift, enough to take a shift break
-            yield self.env.process(self.break_time())
+            if self.env.now < params.SHIFT_WORK_DURATION:
+                yield self.env.process(self.break_time())
 
     def record_order_fulfillment_stats(self):
         # record the order fulfillment stats at the end of the journey
         station_start = self.env.now
         with self.orderTabletResource.request() as _order_tablet:
             # request tablet
-            self.show_bread_crumbs('start waiting for tablet')
+            self.show_bread_crumbs('start waiting for tablet', params.MFC_AREA_ORDER)
             yield _order_tablet
-            self.show_bread_crumbs('done waiting for tablet')
+            self.show_bread_crumbs('done waiting for tablet', params.MFC_AREA_ORDER)
 
         # got tablet, record the order stats
-        self.show_bread_crumbs('start recording the order stats')
+        self.show_bread_crumbs('start recording the order stats', params.MFC_AREA_ORDER)
         _min = params.TIME_TO_RECORD_ORDER_STATS_MIN
         _max = params.TIME_TO_RECORD_ORDER_STATS_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs(' done recording the order stats')
+        self.show_bread_crumbs(' done recording the order stats', params.MFC_AREA_ORDER)
 
         station_time = self.env.now - station_start
         self.pppOrderTally.orderTime = station_time
         self.pppOrderTally.workTime += station_time
         self.pppShiftTally.workTime += station_time
+
+        return True
 
     def break_time(self):
         # Before handling a new order, check whether the PPP worked a full shift, enough to take a shift break
@@ -157,7 +160,8 @@ class PPP(object):
 
         if self.pppShiftTally.nextShiftBreak < self.env.now < params.SHIFT_WORK_DURATION:
             # PPP is due for a shift break
-            self.show_bread_crumbs('taking a %s seconds shift break' % params.SHIFT_BREAK_DURATION)
+            self.show_bread_crumbs('taking a %s seconds shift break' % params.SHIFT_BREAK_DURATION,
+                                   params.MFC_AREA_BREAK)
             yield self.env.timeout(params.SHIFT_BREAK_DURATION)
             self.pppShiftTally.nextShiftBreak += self.pppShiftTally.nextShiftBreak
             self.pppShiftTally.nextHourBreak = self.env.now + (3600 - params.HOUR_BREAK_DURATION)
@@ -165,7 +169,8 @@ class PPP(object):
         else:
             if self.env.now > self.pppShiftTally.nextHourBreak:
                 # PPP is due for a shift break
-                self.show_bread_crumbs('taking a %s seconds hourly break' % params.HOUR_BREAK_DURATION)
+                self.show_bread_crumbs('taking a %s seconds hourly break' % params.HOUR_BREAK_DURATION,
+                                       params.MFC_AREA_BREAK)
                 yield self.env.timeout(params.HOUR_BREAK_DURATION)
                 self.pppShiftTally.nextHourBreak = self.env.now + (3600 - params.HOUR_BREAK_DURATION)
                 break_duration = params.HOUR_BREAK_DURATION
@@ -191,10 +196,10 @@ class PPP(object):
         self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
 
         # Simulate cleaning receiving
-        self.show_bread_crumbs('Starting cleaning receiving')
+        self.show_bread_crumbs('Starting cleaning receiving', params.MFC_AREA_CLEAN_RECEIVE)
         area_time = trunc(params.SHIFT_WORK_DURATION * params.CLEANING_RECEIVING_SHIFT_PERCENT_ALLOCATION)
         yield self.env.timeout(area_time)
-        self.show_bread_crumbs('Stop cleaning receiving')
+        self.show_bread_crumbs('Stop cleaning receiving', params.MFC_AREA_CLEAN_RECEIVE)
         station_time = self.env.now - station_start
 
         self.pppOrderTally.cleaningReceivingTime = station_time
@@ -214,10 +219,10 @@ class PPP(object):
         self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
 
         # Simulate cycle counting
-        self.show_bread_crumbs('Starting cycle counting')
+        self.show_bread_crumbs('Starting cycle counting', params.MFC_AREA_CYCLE_COUNT)
         area_time = trunc(params.SHIFT_WORK_DURATION * params.CYCLE_COUNT_SHIFT_PERCENT_ALLOCATION)
         yield self.env.timeout(area_time)
-        self.show_bread_crumbs('Stop cycle counting')
+        self.show_bread_crumbs('Stop cycle counting', params.MFC_AREA_CYCLE_COUNT)
         station_time = self.env.now - station_start
 
         self.pppOrderTally.cleaningReceivingTime = station_time
@@ -237,10 +242,10 @@ class PPP(object):
         self.pppOrderTally = order_tally.OrderTally(self.pppShiftTally.pppId)
 
         # Simulate cycle counting
-        self.show_bread_crumbs('Starting parcel level scanning')
+        self.show_bread_crumbs('Starting parcel level scanning', params.MFC_AREA_PALLET_LEVEL_SCANNER)
         area_time = trunc(params.SHIFT_WORK_DURATION * params.CYCLE_COUNT_SHIFT_PERCENT_ALLOCATION)
         yield self.env.timeout(area_time)
-        self.show_bread_crumbs('Stop parcel level scanning')
+        self.show_bread_crumbs('Stop parcel level scanning', params.MFC_AREA_PALLET_LEVEL_SCANNER)
         station_time = self.env.now - station_start
 
         self.pppOrderTally.parcelLevelScanningTime = station_time
@@ -256,39 +261,39 @@ class PPP(object):
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the order station at')
+        self.show_bread_crumbs('starts walking to the order station at', params.MFC_AREA_ORDER)
         _min = params.TIME_TO_WALK_TO_ORDER_STATION_MIN
         _max = params.TIME_TO_WALK_TO_ORDER_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('arrives the order station at')
+        self.show_bread_crumbs('arrives the order station at', params.MFC_AREA_ORDER)
 
         # got tablet, read and memorize the order
         with self.orderTabletResource.request() as _order_tablet_1:
             # request tablet
-            self.show_bread_crumbs('start waiting for tablet')
+            self.show_bread_crumbs('start waiting for tablet', params.MFC_AREA_ORDER)
             yield _order_tablet_1
-            self.show_bread_crumbs('done waiting for tablet')
+            self.show_bread_crumbs('done waiting for tablet', params.MFC_AREA_ORDER)
 
         # wait for an order
-        self.show_bread_crumbs('start waiting for an order')
+        self.show_bread_crumbs('start waiting for an order', params.MFC_AREA_ORDER)
         time = rng.get_random_normal(params.ORDER_INTER_ARRIVAL_TIME_MEAN, params.ORDER_INTER_ARRIVAL_TIME_SIGMA)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('done waiting for an order')
+        self.show_bread_crumbs('done waiting for an order', params.MFC_AREA_ORDER)
 
-        self.show_bread_crumbs('start memorizing the order')
+        self.show_bread_crumbs('start memorizing the order', params.MFC_AREA_ORDER)
         _min = params.TIME_TO_RECORD_ORDER_STATS_MIN
         _max = params.TIME_TO_RECORD_ORDER_STATS_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('done memorizing the order')
+        self.show_bread_crumbs('done memorizing the order', params.MFC_AREA_ORDER)
 
         # Randomize Rush/SameDay or NextDay/National and number og items
         self.pppOrderTally.orderType = app_numbers.is_order_rush_next_day()
         if self.pppOrderTally.orderType == params.ORDER_TYPE_RUSH:
             # Rush and same day orders have 1 item
             # TODO Really?
-            self.show_bread_crumbs('Rush Order, 1 bag')
+            self.show_bread_crumbs('Rush Order, 1 bag', params.MFC_AREA_ORDER)
             self.pppOrderTally.items = 1
             self.pppOrderTally.numberOfBoxes = 1
         else:
@@ -298,27 +303,27 @@ class PPP(object):
                 self.pppOrderTally.numberOfBoxes = 2
             self.show_bread_crumbs('Nationwide Order, %s boxes, %s items' % (
                 self.pppOrderTally.numberOfBoxes,
-                self.pppOrderTally.items))
+                self.pppOrderTally.items), params.MFC_AREA_ORDER)
 
         # get the package containers
-        self.show_bread_crumbs('starts walking to retrieve package containers')
+        self.show_bread_crumbs('starts walking to retrieve package containers', params.MFC_AREA_ORDER)
         _min = params.TIME_TO_WALK_TO_PACK_STATION_MIN
         _max = params.TIME_TO_WALK_TO_PACK_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('done walking to retrieve package containers')
+        self.show_bread_crumbs('done walking to retrieve package containers', params.MFC_AREA_ORDER)
 
         if self.pppOrderTally.orderType == params.ORDER_TYPE_NATIONAL:
             if not app_numbers.got_package_containers():
                 # did not find a package container, abort this order fulfillment
-                self.show_bread_crumbs(orderStatus.OrderStatus.OOP.name)
+                self.show_bread_crumbs(orderStatus.OrderStatus.OOP.name, params.MFC_AREA_ORDER)
                 self.pppOrderTally.status = orderStatus.OrderStatus.OOP.name
                 simulation_status = False
             else:
-                self.show_bread_crumbs('got the packaging')
+                self.show_bread_crumbs('got the packaging', params.MFC_AREA_ORDER)
 
         # accumulate order station time
-        self.show_bread_crumbs('leaving order station')
+        self.show_bread_crumbs('leaving order station', params.MFC_AREA_ORDER)
         station_time = self.env.now - station_start
         self.pppOrderTally.orderTime = station_time
         self.pppOrderTally.workTime += station_time
@@ -336,66 +341,66 @@ class PPP(object):
         if self.pppOrderTally.orderType == params.ORDER_TYPE_NATIONAL:
             max_items_in_container = 6
         total_parcels = 0
-        self.show_bread_crumbs('picking %s  items' % self.pppOrderTally.items)
+        self.show_bread_crumbs('picking %s  items' % self.pppOrderTally.items, params.MFC_AREA_PICK)
         for k in range(self.pppOrderTally.items):
             # go to pick slot location
-            self.show_bread_crumbs('picking item #%s' % (k + 1))
-            self.show_bread_crumbs('walk to the pick slot location')
+            self.show_bread_crumbs('picking item #%s' % (k + 1), params.MFC_AREA_PICK)
+            self.show_bread_crumbs('walk to the pick slot location', params.MFC_AREA_PICK)
             _min = params.TIME_TO_WALK_TO_PICK_STATION_MIN
             _max = params.TIME_TO_WALK_TO_PICK_STATION_MAX
             time = random.randrange(_min, _max)
             yield self.env.timeout(time)
-            self.show_bread_crumbs('arrives the the pick slot location')
+            self.show_bread_crumbs('arrives the the pick slot location', params.MFC_AREA_PICK)
             if app_numbers.get_random_sku_qtd() == 0:
-                self.show_bread_crumbs('item is OOS')
-                self.show_bread_crumbs(orderStatus.OrderStatus.OOS.name)
+                self.show_bread_crumbs('item is OOS', params.MFC_AREA_PICK)
+                self.show_bread_crumbs(orderStatus.OrderStatus.OOS.name, params.MFC_AREA_PICK)
                 self.pppOrderTally.status = orderStatus.OrderStatus.OOS.name
                 simulation_status = False
                 break
             else:
                 # pick the item
-                self.show_bread_crumbs('starts picking item')
+                self.show_bread_crumbs('starts picking item', params.MFC_AREA_PICK)
                 _min = params.TIME_TO_PICK_ITEM_MIN
                 _max = params.TIME_TO_PICK_ITEM_MAX
                 time = random.randrange(_min, _max)
                 yield self.env.timeout(time)
-                self.show_bread_crumbs('done picking item')
+                self.show_bread_crumbs('done picking item', params.MFC_AREA_PICK)
                 # return to the table
-                self.show_bread_crumbs('walk to the table')
+                self.show_bread_crumbs('walk to the table', params.MFC_AREA_PICK)
                 _min = params.TIME_TO_WALK_TO_PICK_STATION_MIN
                 _max = params.TIME_TO_WALK_TO_PICK_STATION_MAX
                 time = random.randrange(_min, _max)
                 yield self.env.timeout(time)
-                self.show_bread_crumbs('arrives at the table')
+                self.show_bread_crumbs('arrives at the table', params.MFC_AREA_PICK)
                 # place item in container
-                self.show_bread_crumbs('place item in container')
+                self.show_bread_crumbs('place item in container', params.MFC_AREA_PICK)
                 _min = params.TIME_TO_PLACE_ITEM_IN_CONTAINER_MIN
                 _max = params.TIME_TO_PLACE_ITEM_IN_CONTAINER_MAX
                 time = random.randrange(_min, _max)
                 yield self.env.timeout(time)
-                self.show_bread_crumbs('placed item in container')
+                self.show_bread_crumbs('placed item in container', params.MFC_AREA_PICK)
                 items_on_hand += 1
                 # take container to the outbound box shelf area, if full
                 if items_on_hand == max_items_in_container:
                     total_parcels += 1
                     # take container to the outbound box shelf area
-                    self.show_bread_crumbs('container is full')
-                    self.show_bread_crumbs('walk to outbound box shelf area')
+                    self.show_bread_crumbs('container is full', params.MFC_AREA_PICK)
+                    self.show_bread_crumbs('walk to outbound box shelf area', params.MFC_AREA_PICK)
                     _min = params.TIME_TO_WALK_TO_OUTBOUND_SHELF_AREA_MIN
                     _max = params.TIME_TO_WALK_TO_OUTBOUND_SHELF_AREA_MAX
                     time = random.randrange(_min, _max)
                     yield self.env.timeout(time)
-                    self.show_bread_crumbs('walked to outbound box shelf area')
+                    self.show_bread_crumbs('walked to outbound box shelf area', params.MFC_AREA_PICK)
                     # place container at outbound box shelf
-                    self.show_bread_crumbs('place container on outbound box shelf area')
+                    self.show_bread_crumbs('place container on outbound box shelf area', params.MFC_AREA_PICK)
                     _min = params.TIME_TO_PLACE_CONTAINER_ON_OUTBOUND_SHELF_MIN
                     _max = params.TIME_TO_PLACE_CONTAINER_ON_OUTBOUND_SHELF_MAX
                     time = random.randrange(_min, _max)
                     yield self.env.timeout(time)
-                    self.show_bread_crumbs('placed container on outbound box shelf area')
+                    self.show_bread_crumbs('placed container on outbound box shelf area', params.MFC_AREA_PICK)
                     items_on_hand = 0
                     if (k + 1) == self.pppOrderTally.items:
-                        self.show_bread_crumbs('finished picking, at outbound box shelf area, stay there!')
+                        self.show_bread_crumbs('finished picking, at outbound box shelf area, stay there!', params.MFC_AREA_PICK)
                         break
         # If simulation_status = False, restock the items in hand, and the one in the outbound shelf containers
         if not simulation_status:
@@ -403,22 +408,22 @@ class PPP(object):
         else:
             if items_on_hand > 0:
                 # take container to the outbound box shelf area
-                self.show_bread_crumbs('walk to outbound box shelf area')
+                self.show_bread_crumbs('walk to outbound box shelf area', params.MFC_AREA_PICK)
                 _min = params.TIME_TO_WALK_TO_OUTBOUND_SHELF_AREA_MIN
                 _max = params.TIME_TO_WALK_TO_OUTBOUND_SHELF_AREA_MAX
                 time = random.randrange(_min, _max)
                 yield self.env.timeout(time)
-                self.show_bread_crumbs('walked to outbound box shelf area')
+                self.show_bread_crumbs('walked to outbound box shelf area', params.MFC_AREA_PICK)
                 # place container at outbound box shelf
-                self.show_bread_crumbs('placing container on outbound box shelf area')
+                self.show_bread_crumbs('placing container on outbound box shelf area', params.MFC_AREA_PICK)
                 _min = params.TIME_TO_PLACE_CONTAINER_ON_OUTBOUND_SHELF_MIN
                 _max = params.TIME_TO_PLACE_CONTAINER_ON_OUTBOUND_SHELF_MAX
                 time = random.randrange(_min, _max)
                 yield self.env.timeout(time)
-                self.show_bread_crumbs('placed container on outbound box shelf area')
+                self.show_bread_crumbs('placed container on outbound box shelf area', params.MFC_AREA_PICK)
 
         # accumulate pick time
-        self.show_bread_crumbs('leaving pack station')
+        self.show_bread_crumbs('leaving pick area', params.MFC_AREA_PICK)
         station_time = self.env.now - station_start
         self.pppOrderTally.pickTime = station_time
         self.pppOrderTally.workTime += station_time
@@ -429,12 +434,12 @@ class PPP(object):
     def restock_items(self):
         # TODO using blunt force, refine later
         # take container to the outbound box shelf area
-        self.show_bread_crumbs('restocking items')
+        self.show_bread_crumbs('restocking items', params.MFC_AREA_PICK)
         _min = params.TIME_TO_RESTOCK_ITEMS_MIN
         _max = params.TIME_TO_RESTOCK_ITEMS_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('restocked items')
+        self.show_bread_crumbs('restocked items', params.MFC_AREA_PICK)
         return True
 
     def pack_area(self):
@@ -442,23 +447,23 @@ class PPP(object):
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the packing station')
+        self.show_bread_crumbs('starts walking to the packing station', params.MFC_AREA_PACK)
         _min = params.TIME_TO_WALK_TO_PACK_STATION_MIN
         _max = params.TIME_TO_WALK_TO_PACK_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('arrives the packing station')
+        self.show_bread_crumbs('arrives the packing station', params.MFC_AREA_PACK)
         _min = params.TIME_TO_PACK_ORDER_MIN
 
-        self.show_bread_crumbs('pack the order items')
+        self.show_bread_crumbs('pack the order items', params.MFC_AREA_PACK)
         _min = params.TIME_TO_PACK_ORDER_MIN
         _max = params.TIME_TO_PACK_ORDER_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('packed the order items')
+        self.show_bread_crumbs('packed the order items', params.MFC_AREA_PACK)
 
         # accumulate  packing station time
-        self.show_bread_crumbs('leaving pack station')
+        self.show_bread_crumbs('leaving pack station', params.MFC_AREA_PACK)
         station_time = self.env.now - station_start
         self.pppOrderTally.packTime = station_time
         self.pppOrderTally.workTime += station_time
@@ -471,18 +476,18 @@ class PPP(object):
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the label area')
+        self.show_bread_crumbs('starts walking to the label area', params.MFC_AREA_LABEL)
         _min = params.TIME_TO_WALK_TO_LABEL_STATION_MIN
         _max = params.TIME_TO_WALK_TO_LABEL_STATION_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('arrived at the label area')
+        self.show_bread_crumbs('arrived at the label area', params.MFC_AREA_LABEL)
 
         # label the order
         with self.labelPrintersResource.request() as req:
             yield req
             if not app_numbers.have_label_resources():
-                self.show_bread_crumbs(orderStatus.OrderStatus.OOL.name)
+                self.show_bread_crumbs(orderStatus.OrderStatus.OOL.name, params.MFC_AREA_LABEL)
                 self.pppOrderTally.status = orderStatus.OrderStatus.OOL.name
                 simulation_status = False
             else:
@@ -491,10 +496,10 @@ class PPP(object):
                 time = random.randrange(_min, _max)
                 yield self.env.timeout(time)
                 self.pppOrderTally.status = orderStatus.OrderStatus.Fulfilled.name
-                self.show_bread_crumbs('labeled the order items')
+                self.show_bread_crumbs('labeled the order items', params.MFC_AREA_LABEL)
 
         # accumulate  label area time
-        self.show_bread_crumbs('leaving label area')
+        self.show_bread_crumbs('leaving label area', params.MFC_AREA_LABEL)
         station_time = self.env.now - station_start
         self.pppOrderTally.labelTime = station_time
         self.pppOrderTally.workTime += station_time
@@ -507,12 +512,12 @@ class PPP(object):
         simulation_status = True
         station_start = self.env.now
 
-        self.show_bread_crumbs('starts walking to the deliver area')
+        self.show_bread_crumbs('starts walking to the deliver area', params.MFC_AREA_DELIVER)
         _min = params.TIME_TO_WALK_TO_DELIVERY_AREA_MIN
         _max = params.TIME_TO_WALK_TO_DELIVERY_AREA_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('arrives the deliver area')
+        self.show_bread_crumbs('arrives the deliver area', params.MFC_AREA_DELIVER)
 
         # label the order
         #  TODO replace this with the full simulation logic
@@ -520,7 +525,7 @@ class PPP(object):
         _max = params.TIME_TO_PLACE_ORDER_AT_DELIVERY_AREA_MAX
         time = random.randrange(_min, _max)
         yield self.env.timeout(time)
-        self.show_bread_crumbs('placed the order at the deliver area')
+        self.show_bread_crumbs('placed the order at the deliver area', params.MFC_AREA_DELIVER)
 
         # accumulate  cdeliver area time
         station_time = self.env.now - station_start
@@ -531,7 +536,7 @@ class PPP(object):
 
         return simulation_status
 
-    def show_bread_crumbs(self, detail):
+    def show_bread_crumbs(self, detail, area='area'):
         msg = '%s %s %s at %s' % (str(self.env.now).zfill(5),
                                   self.pppShiftTally.pppId,
                                   self.pppOrderTally.orderId, detail)
@@ -539,7 +544,9 @@ class PPP(object):
         list_array = [
             str(self.env.now).zfill(5),
             self.pppShiftTally.pppId,
-            self.pppOrderTally.orderId, detail
+            self.pppOrderTally.orderId,
+            area,
+            detail
         ]
         self.pppActivityLog.write(list_array)
 
@@ -631,7 +638,7 @@ orderTallyLog.write(header)
 pppActivityLogLock = threading.Lock()
 pppActivityLog = csv.CSV(params.PPP_ACTIVITY_LOG, pppActivityLogLock)
 pppActivityLog.open()
-header = ['time', 'pppId', 'orderId', 'activity']
+header = ['time', 'pppId', 'orderId', 'area', 'activity']
 pppActivityLog.write(header)
 
 for i in range(params.NUMBER_OF_PPP):

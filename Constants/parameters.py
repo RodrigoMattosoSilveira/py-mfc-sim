@@ -1,5 +1,5 @@
 # Overall simulation parameters
-NUMBER_OF_PPP = 1
+NUMBER_OF_PPP = 3
 
 # PPP break control parameters
 SHIFT_WORK_DURATION = 32400
@@ -95,6 +95,17 @@ PPP_SHIFT_ENDED = 1
 SHIFT_TALLY_LOG = './IO/shift_tally.csv'
 ORDER_TALLY_LOG = './IO/order_tally.csv'
 PPP_ACTIVITY_LOG = './IO/ppp_activity_log.csv'
+
+# Logging aids
+MFC_AREA_ORDER = '01_Order'
+MFC_AREA_PICK = '02_Pick'
+MFC_AREA_PACK = '03_Pack'
+MFC_AREA_LABEL = '04_Label'
+MFC_AREA_DELIVER = '05_Deliver'
+MFC_AREA_CLEAN_RECEIVE = '06_CR'
+MFC_AREA_CYCLE_COUNT = '07_CC'
+MFC_AREA_PALLET_LEVEL_SCANNER = '08_PLS'
+MFC_AREA_BREAK = '09_Break'
 
 
 
