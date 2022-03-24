@@ -22,8 +22,15 @@ def get_random_pack_resources_qtd():
     return get_random_poisson(params.RANDOM_PACKING_RESOURCES_QTD_A)
 
 
-def get_random_label_resources_qtd():
-    return get_random_poisson(params.RANDOM_LABELING_RESOURCES_QTD_A)
+def have_label_resources():
+    got_them = False
+    arr = [0, 1]
+    freq = [100-params.LABEL_AVAILABILITY_PROBABILITY, params.LABEL_AVAILABILITY_PROBABILITY]
+    n = len(arr)
+    if rng_apd(arr, freq, n):
+        got_them = True
+
+    return got_them
 
 
 def is_order_rush_next_day():
